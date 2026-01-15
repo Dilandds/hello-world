@@ -1,73 +1,141 @@
-# Welcome to your Lovable project
+# STL 3D Viewer
 
-## Project info
+A minimalistic Python desktop application for uploading and visualizing STL files with smooth 3D interaction, optimized for handling large models.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Features
 
-## How can I edit this code?
+- **Minimalistic UI**: Clean, modern interface with intuitive controls
+- **STL File Upload**: Easy file selection through button or file dialog
+- **Interactive 3D Viewer**: Rotate, zoom, and pan your 3D models smoothly
+- **Large Model Support**: Optimized rendering using PyVista/VTK for smooth performance with large STL files
+- **Real-time Visualization**: Instant display of loaded STL models with proper lighting and shading
 
-There are several ways of editing your application.
+## Requirements
 
-**Use Lovable**
+- Python 3.8 or higher (Python 3.11 or 3.12 recommended for macOS)
+- PyQt5 (PyQt6 has compatibility issues on macOS with Python 3.13)
+- PyVista
+- NumPy
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Installation
 
-Changes made via Lovable will be committed automatically to this repo.
+1. Clone or download this repository
 
-**Use your preferred IDE**
+2. Create and activate a virtual environment:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+python3 -m venv venv
+source venv/bin/activate
 ```
 
-**Edit a file directly in GitHub**
+3. Install the required dependencies:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+pip install -r requirements.txt
+```
 
-**Use GitHub Codespaces**
+**Note:** Make sure your virtual environment is activated (you should see `(venv)` in your terminal prompt) before installing dependencies and running the application.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Usage
 
-## What technologies are used for this project?
+**Important:** Always activate the virtual environment first:
 
-This project is built with:
+```bash
+source venv/bin/activate
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Then run the application using:
 
-## How can I deploy this project?
+```bash
+python main.py
+```
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Or use the provided run script (macOS/Linux):
 
-## Can I connect a custom domain to my Lovable project?
+```bash
+./run.sh
+```
 
-Yes, you can!
+To deactivate the virtual environment when you're done:
+```bash
+deactivate
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### How to Use
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+1. Launch the application
+2. Click the "Upload STL File" button on the left panel
+3. Select an STL file from your computer
+4. The 3D model will appear in the viewer on the right panel
+5. Interact with the model:
+   - **Rotate**: Click and drag
+   - **Zoom**: Scroll wheel or pinch gesture
+   - **Pan**: Right-click and drag (or Shift + left-click and drag)
+
+## Technology Stack
+
+- **PyQt5**: GUI framework for the desktop application (PyQt5 used for better macOS compatibility)
+- **PyVista**: High-performance 3D visualization library built on VTK
+- **VTK**: Underlying rendering engine optimized for large datasets
+- **NumPy**: Numerical computing support
+
+## macOS Compatibility Notes
+
+This application uses PyQt5 instead of PyQt6 for better compatibility with macOS, especially with Python 3.13. If QtInteractor has issues, the application will automatically fall back to offscreen rendering mode, which provides a stable viewing experience with button-based controls for rotation and zoom.
+
+## Performance
+
+This application is optimized for handling large STL files smoothly:
+
+- Uses VTK's efficient rendering pipeline
+- Supports GPU acceleration when available
+- Optimized mesh rendering for large datasets
+- Configurable quality settings for balance between performance and visual quality
+
+## File Structure
+
+```
+Jewellery_new/
+├── main.py                 # Application entry point
+├── stl_viewer.py          # Main window with UI
+├── viewer_widget.py        # 3D viewer widget (PyVista)
+├── requirements.txt       # Python dependencies
+├── run.sh                 # Convenience script to run the app (macOS/Linux)
+└── README.md              # This file
+```
+
+## Troubleshooting
+
+### Import Errors
+
+If you encounter import errors like `ModuleNotFoundError: No module named 'PyQt6'`:
+
+1. Make sure the virtual environment is activated:
+   ```bash
+   source venv/bin/activate
+   ```
+
+2. Ensure all dependencies are installed:
+   ```bash
+   pip install --upgrade -r requirements.txt
+   ```
+
+3. Verify you're using the correct Python interpreter:
+   ```bash
+   which python  # Should point to venv/bin/python
+   ```
+
+### Large File Performance
+
+For very large STL files (>10MB), the initial load may take a few seconds. The viewer is optimized for smooth interaction after loading.
+
+### Display Issues
+
+If the 3D viewer appears blank:
+- Ensure your graphics drivers are up to date
+- Check that OpenGL is properly configured on your system
+- Try restarting the application
+
+## License
+
+This project is provided as-is for personal or commercial use.
