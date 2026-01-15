@@ -243,14 +243,14 @@ class STLViewerWindow(QMainWindow):
             if event.type() == QEvent.Enter:
                 obj.setStyleSheet("""
                     QFrame#dimensionRow {
-                        background-color: #D6E8F5;
+                        background-color: #DBEAFE;
                         border-radius: 8px;
                     }
                 """)
             elif event.type() == QEvent.Leave:
                 obj.setStyleSheet("""
                     QFrame#dimensionRow {
-                        background-color: #EBF4FA;
+                        background-color: #F0F7FF;
                         border-radius: 8px;
                     }
                 """)
@@ -258,16 +258,14 @@ class STLViewerWindow(QMainWindow):
             if event.type() == QEvent.Enter:
                 obj.setStyleSheet("""
                     QFrame#surfaceRowStandard {
-                        background-color: #F0F0F0;
-                        border: 1px solid #D0D5DD;
+                        background-color: #DBEAFE;
                         border-radius: 8px;
                     }
                 """)
             elif event.type() == QEvent.Leave:
                 obj.setStyleSheet("""
                     QFrame#surfaceRowStandard {
-                        background-color: #FFFFFF;
-                        border: 1px solid #E0E6ED;
+                        background-color: #F0F7FF;
                         border-radius: 8px;
                     }
                 """)
@@ -276,7 +274,7 @@ class STLViewerWindow(QMainWindow):
                 obj.setStyleSheet("""
                     QFrame#surfaceRowHighlight {
                         background-color: #B2EBF2;
-                        border: 1px solid #00838F;
+                        border: 1px solid #2DA398;
                         border-radius: 8px;
                     }
                 """)
@@ -284,7 +282,7 @@ class STLViewerWindow(QMainWindow):
                 obj.setStyleSheet("""
                     QFrame#surfaceRowHighlight {
                         background-color: #E0F7FA;
-                        border: 1px solid #26A69A;
+                        border: 1px solid #2DA398;
                         border-radius: 8px;
                     }
                 """)
@@ -292,16 +290,14 @@ class STLViewerWindow(QMainWindow):
             if event.type() == QEvent.Enter:
                 obj.setStyleSheet("""
                     QFrame#weightRowStandard {
-                        background-color: #F0F0F0;
-                        border: 1px solid #D0D5DD;
+                        background-color: #DBEAFE;
                         border-radius: 8px;
                     }
                 """)
             elif event.type() == QEvent.Leave:
                 obj.setStyleSheet("""
                     QFrame#weightRowStandard {
-                        background-color: #FFFFFF;
-                        border: 1px solid #E0E6ED;
+                        background-color: #F0F7FF;
                         border-radius: 8px;
                     }
                 """)
@@ -309,16 +305,16 @@ class STLViewerWindow(QMainWindow):
             if event.type() == QEvent.Enter:
                 obj.setStyleSheet("""
                     QFrame#weightRowHighlight {
-                        background-color: #A7F3D0;
-                        border: 1px solid #047857;
+                        background-color: #B2EBF2;
+                        border: 1px solid #2DA398;
                         border-radius: 8px;
                     }
                 """)
             elif event.type() == QEvent.Leave:
                 obj.setStyleSheet("""
                     QFrame#weightRowHighlight {
-                        background-color: #D1FAE5;
-                        border: 1px solid #10B981;
+                        background-color: #E0F7FA;
+                        border: 1px solid #2DA398;
                         border-radius: 8px;
                     }
                 """)
@@ -341,7 +337,7 @@ class STLViewerWindow(QMainWindow):
         title_font.setPointSize(14)
         title_font.setBold(True)
         title_label.setFont(title_font)
-        title_label.setStyleSheet("color: #2C3E50; margin-bottom: 4px;")
+        title_label.setStyleSheet("color: #1E293B; margin-bottom: 4px;")
         card_layout.addWidget(title_label)
         
         # Dimension rows
@@ -431,7 +427,7 @@ class STLViewerWindow(QMainWindow):
         title_font.setPointSize(14)
         title_font.setBold(True)
         title_label.setFont(title_font)
-        title_label.setStyleSheet("color: #2C3E50; margin-bottom: 4px;")
+        title_label.setStyleSheet("color: #1E293B; margin-bottom: 4px;")
         
         # Tray/download icon (using unicode for simplicity)
         icon_label = QLabel("⬇")
@@ -539,7 +535,7 @@ class STLViewerWindow(QMainWindow):
         title_font.setPointSize(14)
         title_font.setBold(True)
         title_label.setFont(title_font)
-        title_label.setStyleSheet("color: #2C3E50; margin-bottom: 4px;")
+        title_label.setStyleSheet("color: #1E293B; margin-bottom: 4px;")
         
         # Scale icon
         icon_label = QLabel("⚖")
@@ -584,7 +580,7 @@ class STLViewerWindow(QMainWindow):
         
         # Info icon
         info_icon = QLabel("ℹ️")
-        info_icon.setStyleSheet("color: #92400E; font-size: 12px;")
+        info_icon.setStyleSheet("color: #B45309; font-size: 12px;")
         info_icon.setFixedWidth(20)
         info_icon.setAlignment(Qt.AlignTop)
         
@@ -593,7 +589,7 @@ class STLViewerWindow(QMainWindow):
         disclaimer_font = QFont()
         disclaimer_font.setPointSize(9)
         disclaimer.setFont(disclaimer_font)
-        disclaimer.setStyleSheet("color: #92400E;")
+        disclaimer.setStyleSheet("color: #B45309;")
         disclaimer.setWordWrap(True)
         
         footer_layout.addWidget(info_icon)
@@ -740,7 +736,7 @@ class STLViewerWindow(QMainWindow):
         """Apply minimalistic styling with floating card design."""
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #F0F3F6;
+                background-color: #F8FAFC;
             }
             QPushButton {
                 background-color: #4A90E2;
@@ -758,36 +754,35 @@ class STLViewerWindow(QMainWindow):
                 background-color: #2A5F8F;
             }
             QLabel {
-                color: #4A5568;
+                color: #64748B;
             }
             QLabel#dimensionLabel {
-                color: #718096;
+                color: #64748B;
             }
             QLabel#dimensionValue {
-                color: #1A202C;
+                color: #1E293B;
             }
             QFrame#dimensionsCard {
                 background-color: #FFFFFF;
                 border-radius: 12px;
-                border: none;
+                border: 1px solid #E2E8F0;
             }
             QFrame#dimensionRow {
-                background-color: #EBF4FA;
+                background-color: #F0F7FF;
                 border-radius: 8px;
             }
             QFrame#surfaceAreaCard {
                 background-color: #FFFFFF;
                 border-radius: 12px;
-                border: none;
+                border: 1px solid #E2E8F0;
             }
             QFrame#surfaceRowStandard {
-                background-color: #FFFFFF;
-                border: 1px solid #E0E6ED;
+                background-color: #F0F7FF;
                 border-radius: 8px;
             }
             QFrame#surfaceRowHighlight {
                 background-color: #E0F7FA;
-                border: 1px solid #26A69A;
+                border: 1px solid #2DA398;
                 border-radius: 8px;
             }
             QFrame#surfaceFooter {
@@ -796,24 +791,23 @@ class STLViewerWindow(QMainWindow):
                 border-radius: 6px;
             }
             QLabel#surfaceLabel {
-                color: #718096;
+                color: #64748B;
             }
             QLabel#surfaceValue {
-                color: #1A202C;
+                color: #1E293B;
             }
             QFrame#weightCard {
                 background-color: #FFFFFF;
                 border-radius: 12px;
-                border: none;
+                border: 1px solid #E2E8F0;
             }
             QFrame#weightRowStandard {
-                background-color: #FFFFFF;
-                border: 1px solid #E0E6ED;
+                background-color: #F0F7FF;
                 border-radius: 8px;
             }
             QFrame#weightRowHighlight {
-                background-color: #D1FAE5;
-                border: 1px solid #10B981;
+                background-color: #E0F7FA;
+                border: 1px solid #2DA398;
                 border-radius: 8px;
             }
             QFrame#weightFooter {
@@ -822,10 +816,10 @@ class STLViewerWindow(QMainWindow):
                 border-radius: 6px;
             }
             QLabel#weightLabel {
-                color: #718096;
+                color: #64748B;
             }
             QLabel#weightValue {
-                color: #1A202C;
+                color: #1E293B;
             }
             QComboBox#materialCombo {
                 background-color: #FFFFFF;
@@ -833,7 +827,7 @@ class STLViewerWindow(QMainWindow):
                 border-radius: 8px;
                 padding: 8px 12px;
                 font-size: 12px;
-                color: #1A202C;
+                color: #1E293B;
             }
             QComboBox#materialCombo:hover {
                 border: 1px solid #9CA3AF;
@@ -853,9 +847,29 @@ class STLViewerWindow(QMainWindow):
                 background-color: #FFFFFF;
                 border: 1px solid #D1D5DB;
                 border-radius: 8px;
-                selection-background-color: #EBF4FA;
-                selection-color: #1A202C;
+                selection-background-color: #F0F7FF;
+                selection-color: #1E293B;
                 padding: 4px;
+            }
+            QScrollBar:vertical {
+                background: transparent;
+                width: 8px;
+                margin: 0;
+            }
+            QScrollBar::handle:vertical {
+                background: #CBD5E1;
+                border-radius: 4px;
+                min-height: 30px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #94A3B8;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0;
+                background: none;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: none;
             }
         """)
     
