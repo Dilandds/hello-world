@@ -385,23 +385,25 @@ class STLViewerWindow(QMainWindow):
         footer_frame = QFrame()
         footer_frame.setObjectName("surfaceFooter")
         footer_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        footer_frame.setFixedHeight(32)
+        footer_frame.setFixedHeight(52)
         
         footer_layout = QHBoxLayout(footer_frame)
-        footer_layout.setContentsMargins(10, 6, 10, 6)
+        footer_layout.setContentsMargins(10, 8, 10, 8)
         footer_layout.setSpacing(8)
         
         # Info icon
-        info_icon = QLabel("ℹ")
+        info_icon = QLabel("ℹ️")
         info_icon.setStyleSheet("color: #718096; font-size: 12px;")
-        info_icon.setFixedWidth(16)
+        info_icon.setFixedWidth(20)
+        info_icon.setAlignment(Qt.AlignTop)
         
         # Disclaimer text
-        disclaimer = QLabel("Calculated surface area")
+        disclaimer = QLabel("Calculated surface area: Sum of the areas of all triangles in the 3D mesh. Useful for estimating galvanizing or surface treatment costs.")
         disclaimer_font = QFont()
         disclaimer_font.setPointSize(9)
         disclaimer.setFont(disclaimer_font)
         disclaimer.setStyleSheet("color: #718096;")
+        disclaimer.setWordWrap(True)
         
         footer_layout.addWidget(info_icon)
         footer_layout.addWidget(disclaimer)
