@@ -384,8 +384,8 @@ class STLViewerWindow(QMainWindow):
         # Information footer
         footer_frame = QFrame()
         footer_frame.setObjectName("surfaceFooter")
-        footer_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        footer_frame.setFixedHeight(52)
+        footer_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        footer_frame.setMinimumHeight(40)
         
         footer_layout = QHBoxLayout(footer_frame)
         footer_layout.setContentsMargins(10, 8, 10, 8)
