@@ -7,7 +7,8 @@ from pathlib import Path
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QFileDialog, QLabel, QMessageBox, QSplitter,
-    QGroupBox, QGridLayout, QFrame, QSpacerItem, QSizePolicy
+    QGroupBox, QGridLayout, QFrame, QSpacerItem, QSizePolicy,
+    QComboBox
 )
 from PyQt5.QtCore import Qt, QSize, QTimer, QEvent
 from PyQt5.QtGui import QFont, QColor
@@ -154,6 +155,10 @@ class STLViewerWindow(QMainWindow):
         self.surface_area_group = self.create_surface_area_section()
         layout.addWidget(self.surface_area_group)
         
+        # Estimated Weight section
+        self.weight_group = self.create_weight_section()
+        layout.addWidget(self.weight_group)
+        
         # Add stretch to push content to top
         layout.addStretch()
         
@@ -249,6 +254,40 @@ class STLViewerWindow(QMainWindow):
                     QFrame#surfaceRowHighlight {
                         background-color: #E0F7FA;
                         border: 1px solid #26A69A;
+                        border-radius: 8px;
+                    }
+                """)
+        elif obj_name == "weightRowStandard":
+            if event.type() == QEvent.Enter:
+                obj.setStyleSheet("""
+                    QFrame#weightRowStandard {
+                        background-color: #F0F0F0;
+                        border: 1px solid #D0D5DD;
+                        border-radius: 8px;
+                    }
+                """)
+            elif event.type() == QEvent.Leave:
+                obj.setStyleSheet("""
+                    QFrame#weightRowStandard {
+                        background-color: #FFFFFF;
+                        border: 1px solid #E0E6ED;
+                        border-radius: 8px;
+                    }
+                """)
+        elif obj_name == "weightRowHighlight":
+            if event.type() == QEvent.Enter:
+                obj.setStyleSheet("""
+                    QFrame#weightRowHighlight {
+                        background-color: #A7F3D0;
+                        border: 1px solid #047857;
+                        border-radius: 8px;
+                    }
+                """)
+            elif event.type() == QEvent.Leave:
+                obj.setStyleSheet("""
+                    QFrame#weightRowHighlight {
+                        background-color: #D1FAE5;
+                        border: 1px solid #10B981;
                         border-radius: 8px;
                     }
                 """)
@@ -413,6 +452,205 @@ class STLViewerWindow(QMainWindow):
         
         return card
     
+    def create_weight_section(self):
+        """Create the Estimated Weight Calculator card."""
+        # Material density data (g/cm³)
+        self.materials = [
+            ("24 carat gold (999)", 19.32),
+            ("22 carat gold (916)", 17.7),
+            ("18K yellow gold 3N", 15.5),
+            ("18K rose gold", 15.0),
+            ("18K white gold (Pd)", 15.0),
+            ("18K white gold (Ag)", 14.7),
+            ("14K yellow gold N2", 13.58),
+            ("14K rose gold", 13.2),
+            ("14K white gold", 13.0),
+            ("10K gold", 11.6),
+            ("9K gold", 10.8),
+            ("Pure platinum (999)", 21.45),
+            ("Platinum 950", 20.64),
+            ("Platinum 900", 20.0),
+            ("Pure palladium (999)", 12.02),
+            ("Palladium 950", 11.5),
+            ("Pure silver (999)", 10.49),
+            ("Sterling Silver 925", 10.36),
+            ("Copper Cu", 8.96),
+            ("Brass UZ36", 8.5),
+            ("Bronze", 8.8),
+            ("316L Stainless Steel", 8.0),
+            ("Grade 2 Titanium", 4.51),
+            ("Aluminium", 2.7),
+            ("Standard Resin", 1.2),
+            ("Diamond", 3.52),
+            ("Sapphire / Ruby", 4.0),
+            ("Emerald", 2.75),
+            ("Quartz", 2.65),
+        ]
+        
+        self.current_volume_mm3 = 0.0
+        
+        # Main card container
+        card = QFrame()
+        card.setObjectName("weightCard")
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 16, 16, 16)
+        card_layout.setSpacing(10)
+        
+        # Header row with title and icon
+        header_layout = QHBoxLayout()
+        header_layout.setSpacing(8)
+        
+        # Card title
+        title_label = QLabel("Estimated Weight")
+        title_font = QFont()
+        title_font.setPointSize(14)
+        title_font.setBold(True)
+        title_label.setFont(title_font)
+        title_label.setStyleSheet("color: #2C3E50; margin-bottom: 4px;")
+        
+        # Scale icon
+        icon_label = QLabel("⚖")
+        icon_label.setStyleSheet("color: #4A90E2; font-size: 16px;")
+        icon_label.setAlignment(Qt.AlignCenter)
+        
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
+        header_layout.addWidget(icon_label)
+        card_layout.addLayout(header_layout)
+        
+        # Material selector dropdown
+        self.material_combo = QComboBox()
+        self.material_combo.setObjectName("materialCombo")
+        self.material_combo.setMinimumHeight(40)
+        for material_name, density in self.materials:
+            self.material_combo.addItem(f"{material_name} ({density} g/cm³)", density)
+        self.material_combo.currentIndexChanged.connect(self.on_material_changed)
+        card_layout.addWidget(self.material_combo)
+        
+        # Volume row
+        volume_row, self.weight_volume_value = self.create_weight_row("Volume", "--", "standard")
+        card_layout.addWidget(volume_row)
+        
+        # Density row
+        density_row, self.weight_density_value = self.create_weight_row("Density", "--", "standard")
+        card_layout.addWidget(density_row)
+        
+        # Estimated weight row (highlighted)
+        weight_row, self.weight_result_value = self.create_weight_row("Estimated weight", "--", "highlight")
+        card_layout.addWidget(weight_row)
+        
+        # Information footer with expanding height
+        footer_frame = QFrame()
+        footer_frame.setObjectName("weightFooter")
+        footer_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        footer_frame.setMinimumHeight(40)
+        
+        footer_layout = QHBoxLayout(footer_frame)
+        footer_layout.setContentsMargins(10, 8, 10, 8)
+        footer_layout.setSpacing(8)
+        
+        # Info icon
+        info_icon = QLabel("ℹ️")
+        info_icon.setStyleSheet("color: #92400E; font-size: 12px;")
+        info_icon.setFixedWidth(20)
+        info_icon.setAlignment(Qt.AlignTop)
+        
+        # Disclaimer text with word wrap
+        disclaimer = QLabel("Actual Volume Calculated: Weight is estimated by multiplying volume (mm³ → cm³) by material density. Results may vary based on mesh accuracy and material purity.")
+        disclaimer_font = QFont()
+        disclaimer_font.setPointSize(9)
+        disclaimer.setFont(disclaimer_font)
+        disclaimer.setStyleSheet("color: #92400E;")
+        disclaimer.setWordWrap(True)
+        
+        footer_layout.addWidget(info_icon)
+        footer_layout.addWidget(disclaimer)
+        
+        card_layout.addWidget(footer_frame)
+        
+        return card
+    
+    def create_weight_row(self, label_text, value_text="--", row_type="standard"):
+        """Create a styled weight row."""
+        row_frame = QFrame()
+        row_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        row_frame.setFixedHeight(44)
+        
+        if row_type == "standard":
+            row_frame.setObjectName("weightRowStandard")
+        elif row_type == "highlight":
+            row_frame.setObjectName("weightRowHighlight")
+        else:
+            row_frame.setObjectName("weightRowStandard")
+        
+        row_layout = QHBoxLayout(row_frame)
+        row_layout.setContentsMargins(14, 8, 14, 8)
+        row_layout.setSpacing(0)
+        
+        # Label (left-anchored)
+        label = QLabel(label_text)
+        label.setObjectName("weightLabel")
+        label_font = QFont()
+        label_font.setPointSize(11)
+        label.setFont(label_font)
+        
+        # Spacer
+        spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        
+        # Value (right-anchored)
+        value = QLabel(value_text)
+        value.setObjectName("weightValue")
+        value_font = QFont()
+        value_font.setPointSize(13)
+        value_font.setBold(True)
+        value.setFont(value_font)
+        value.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        
+        row_layout.addWidget(label)
+        row_layout.addItem(spacer)
+        row_layout.addWidget(value)
+        
+        # Install event filter for hover effect
+        row_frame.installEventFilter(self)
+        
+        return row_frame, value
+    
+    def on_material_changed(self, index):
+        """Handle material selection change and update weight calculation."""
+        if index < 0 or index >= len(self.materials):
+            return
+        
+        material_name, density = self.materials[index]
+        self.weight_density_value.setText(f"{density} g/cm³")
+        self.calculate_weight()
+    
+    def calculate_weight(self):
+        """Calculate and update the estimated weight."""
+        if self.current_volume_mm3 <= 0:
+            self.weight_result_value.setText("--")
+            return
+        
+        # Get current density
+        index = self.material_combo.currentIndex()
+        if index < 0 or index >= len(self.materials):
+            return
+        
+        _, density = self.materials[index]
+        
+        # Convert volume from mm³ to cm³ (1 cm³ = 1000 mm³)
+        volume_cm3 = self.current_volume_mm3 / 1000.0
+        
+        # Calculate weight: weight = volume * density
+        weight_grams = volume_cm3 * density
+        
+        # Display weight with appropriate units
+        if weight_grams >= 1000:
+            self.weight_result_value.setText(f"{weight_grams / 1000:.3f} kg")
+        else:
+            self.weight_result_value.setText(f"{weight_grams:.2f} g")
+    
     def update_dimensions(self, mesh):
         """Update the dimensions display with mesh data."""
         if mesh is None:
@@ -453,6 +691,19 @@ class STLViewerWindow(QMainWindow):
         # Update surface area card
         self.surface_total_value.setText(f"{surface_area:.2f} mm²")
         self.surface_cm_value.setText(f"{surface_area_cm:.2f} cm²")
+        
+        # Update weight calculator
+        self.current_volume_mm3 = volume
+        volume_cm3 = volume / 1000.0
+        self.weight_volume_value.setText(f"{volume_cm3:.4f} cm³")
+        
+        # Update density display with current selection
+        index = self.material_combo.currentIndex()
+        if index >= 0 and index < len(self.materials):
+            _, density = self.materials[index]
+            self.weight_density_value.setText(f"{density} g/cm³")
+        
+        self.calculate_weight()
     
     def apply_styling(self):
         """Apply minimalistic styling with floating card design."""
@@ -518,6 +769,62 @@ class STLViewerWindow(QMainWindow):
             }
             QLabel#surfaceValue {
                 color: #1A202C;
+            }
+            QFrame#weightCard {
+                background-color: #FFFFFF;
+                border-radius: 12px;
+                border: none;
+            }
+            QFrame#weightRowStandard {
+                background-color: #FFFFFF;
+                border: 1px solid #E0E6ED;
+                border-radius: 8px;
+            }
+            QFrame#weightRowHighlight {
+                background-color: #D1FAE5;
+                border: 1px solid #10B981;
+                border-radius: 8px;
+            }
+            QFrame#weightFooter {
+                background-color: #FFFBEB;
+                border: 1px solid #F59E0B;
+                border-radius: 6px;
+            }
+            QLabel#weightLabel {
+                color: #718096;
+            }
+            QLabel#weightValue {
+                color: #1A202C;
+            }
+            QComboBox#materialCombo {
+                background-color: #FFFFFF;
+                border: 1px solid #D1D5DB;
+                border-radius: 8px;
+                padding: 8px 12px;
+                font-size: 12px;
+                color: #1A202C;
+            }
+            QComboBox#materialCombo:hover {
+                border: 1px solid #9CA3AF;
+            }
+            QComboBox#materialCombo::drop-down {
+                border: none;
+                width: 30px;
+            }
+            QComboBox#materialCombo::down-arrow {
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 6px solid #6B7280;
+                margin-right: 10px;
+            }
+            QComboBox#materialCombo QAbstractItemView {
+                background-color: #FFFFFF;
+                border: 1px solid #D1D5DB;
+                border-radius: 8px;
+                selection-background-color: #EBF4FA;
+                selection-color: #1A202C;
+                padding: 4px;
             }
         """)
     
