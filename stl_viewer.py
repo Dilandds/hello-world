@@ -6,7 +6,8 @@ import logging
 from pathlib import Path
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QFileDialog, QLabel, QMessageBox, QSplitter
+    QPushButton, QFileDialog, QLabel, QMessageBox, QSplitter,
+    QGroupBox, QGridLayout, QFrame
 )
 from PyQt5.QtCore import Qt, QSize, QTimer
 from PyQt5.QtGui import QFont
@@ -145,10 +146,95 @@ class STLViewerWindow(QMainWindow):
         info_label.setWordWrap(True)
         layout.addWidget(info_label)
         
+        # Dimensions section
+        self.dimensions_group = self.create_dimensions_section()
+        layout.addWidget(self.dimensions_group)
+        
         # Add stretch to push content to top
         layout.addStretch()
         
         return panel
+    
+    def create_dimensions_section(self):
+        """Create the dimensions display section."""
+        group = QGroupBox("Dimensions")
+        group_layout = QGridLayout(group)
+        group_layout.setSpacing(8)
+        
+        # Create dimension labels
+        self.dim_width_label = QLabel("Width (X):")
+        self.dim_width_value = QLabel("--")
+        self.dim_width_value.setAlignment(Qt.AlignRight)
+        
+        self.dim_height_label = QLabel("Height (Y):")
+        self.dim_height_value = QLabel("--")
+        self.dim_height_value.setAlignment(Qt.AlignRight)
+        
+        self.dim_depth_label = QLabel("Depth (Z):")
+        self.dim_depth_value = QLabel("--")
+        self.dim_depth_value.setAlignment(Qt.AlignRight)
+        
+        # Add separator line
+        separator = QFrame()
+        separator.setFrameShape(QFrame.HLine)
+        separator.setFrameShadow(QFrame.Sunken)
+        
+        self.dim_volume_label = QLabel("Volume:")
+        self.dim_volume_value = QLabel("--")
+        self.dim_volume_value.setAlignment(Qt.AlignRight)
+        
+        self.dim_surface_label = QLabel("Surface:")
+        self.dim_surface_value = QLabel("--")
+        self.dim_surface_value.setAlignment(Qt.AlignRight)
+        
+        # Add to grid layout
+        group_layout.addWidget(self.dim_width_label, 0, 0)
+        group_layout.addWidget(self.dim_width_value, 0, 1)
+        group_layout.addWidget(self.dim_height_label, 1, 0)
+        group_layout.addWidget(self.dim_height_value, 1, 1)
+        group_layout.addWidget(self.dim_depth_label, 2, 0)
+        group_layout.addWidget(self.dim_depth_value, 2, 1)
+        group_layout.addWidget(separator, 3, 0, 1, 2)
+        group_layout.addWidget(self.dim_volume_label, 4, 0)
+        group_layout.addWidget(self.dim_volume_value, 4, 1)
+        group_layout.addWidget(self.dim_surface_label, 5, 0)
+        group_layout.addWidget(self.dim_surface_value, 5, 1)
+        
+        return group
+    
+    def update_dimensions(self, mesh):
+        """Update the dimensions display with mesh data."""
+        if mesh is None:
+            self.dim_width_value.setText("--")
+            self.dim_height_value.setText("--")
+            self.dim_depth_value.setText("--")
+            self.dim_volume_value.setText("--")
+            self.dim_surface_value.setText("--")
+            return
+        
+        # Get bounding box dimensions
+        bounds = mesh.bounds  # (xmin, xmax, ymin, ymax, zmin, zmax)
+        width = bounds[1] - bounds[0]   # X dimension
+        height = bounds[3] - bounds[2]  # Y dimension
+        depth = bounds[5] - bounds[4]   # Z dimension
+        
+        # Get volume and surface area
+        try:
+            volume = mesh.volume
+        except:
+            volume = 0.0
+        
+        try:
+            surface_area = mesh.area
+        except:
+            surface_area = 0.0
+        
+        # Update labels with formatted values
+        self.dim_width_value.setText(f"{width:.2f} mm")
+        self.dim_height_value.setText(f"{height:.2f} mm")
+        self.dim_depth_value.setText(f"{depth:.2f} mm")
+        self.dim_volume_value.setText(f"{volume:.2f} mm³")
+        self.dim_surface_value.setText(f"{surface_area:.2f} mm²")
     
     def apply_styling(self):
         """Apply minimalistic styling to the application."""
@@ -172,6 +258,20 @@ class STLViewerWindow(QMainWindow):
                 background-color: #2a5f8f;
             }
             QLabel {
+                color: #333333;
+            }
+            QGroupBox {
+                font-weight: bold;
+                border: 1px solid #cccccc;
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 10px;
+                background-color: #ffffff;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
                 color: #333333;
             }
         """)
@@ -214,6 +314,9 @@ class STLViewerWindow(QMainWindow):
                 # Update window title with filename
                 filename = Path(file_path).name
                 self.setWindowTitle(f"STL 3D Viewer - {filename}")
+                # Update dimensions display
+                if hasattr(self.viewer_widget, 'current_mesh'):
+                    self.update_dimensions(self.viewer_widget.current_mesh)
         else:
             logger.info("upload_stl_file: File selection cancelled")
 
