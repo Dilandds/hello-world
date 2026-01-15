@@ -128,22 +128,22 @@ class STLViewerWindow(QMainWindow):
         scroll_area.setFrameShape(QFrame.NoFrame)
         scroll_area.setMinimumWidth(350)  # Prevent squishing
         
-        # Style scroll area and viewport with slightly darker background (#F1F5F9)
+        # Style scroll area and viewport with light neutral gray (#F8FAFC) to make white cards pop
         scroll_area.setStyleSheet("""
             QScrollArea#sidebarScrollArea {
-                background-color: #F1F5F9;
+                background-color: #F8FAFC;
                 border: none;
             }
             QScrollArea#sidebarScrollArea > QWidget > QWidget {
-                background-color: #F1F5F9;
+                background-color: #F8FAFC;
             }
         """)
-        scroll_area.viewport().setStyleSheet("background-color: #F1F5F9;")
+        scroll_area.viewport().setStyleSheet("background-color: #F8FAFC;")
         
         # Create content widget for scroll area
         content_widget = QWidget()
         content_widget.setObjectName("sidebarContent")
-        content_widget.setStyleSheet("background-color: #F1F5F9;")
+        content_widget.setStyleSheet("background-color: #F8FAFC;")
         content_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         
         layout = QVBoxLayout(content_widget)
@@ -152,27 +152,29 @@ class STLViewerWindow(QMainWindow):
         # Right margin of 20px prevents scrollbar overlap
         layout.setContentsMargins(10, 10, 20, 10)
         
-        # Title label
+        # Title label - bold and dark (#1E293B)
         title_label = QLabel("STL Viewer")
-        title_font = QFont()
-        title_font.setPointSize(16)
+        title_font = QFont("Inter", 16)
         title_font.setBold(True)
         title_label.setFont(title_font)
+        title_label.setStyleSheet("color: #1E293B;")
         title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(title_label)
         
-        # Upload button
+        # Upload button - bright sky blue (#5294E2), white text, rounded corners (8px)
         upload_btn = QPushButton("Upload STL File")
         upload_btn.setMinimumHeight(50)
+        upload_btn.setObjectName("uploadBtn")
         upload_btn.clicked.connect(self.upload_stl_file)
         layout.addWidget(upload_btn)
         
-        # Info label
+        # Info label - muted blue-gray (#64748B)
         info_label = QLabel(
             "Click the button above\nto load an STL file\nfor 3D visualization."
         )
         info_label.setAlignment(Qt.AlignCenter)
         info_label.setWordWrap(True)
+        info_label.setStyleSheet("color: #64748B;")
         layout.addWidget(info_label)
         
         # Dimensions section
@@ -742,10 +744,13 @@ class STLViewerWindow(QMainWindow):
         """Apply minimalistic styling with floating card design."""
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #F1F5F9;
+                background-color: #F8FAFC;
             }
-            QPushButton {
-                background-color: #4A90E2;
+            * {
+                font-family: 'Inter', 'Roboto', 'Segoe UI', sans-serif;
+            }
+            QPushButton#uploadBtn {
+                background-color: #5294E2;
                 color: white;
                 border: none;
                 border-radius: 8px;
@@ -753,14 +758,15 @@ class STLViewerWindow(QMainWindow):
                 font-size: 14px;
                 font-weight: bold;
             }
-            QPushButton:hover {
-                background-color: #357ABD;
+            QPushButton#uploadBtn:hover {
+                background-color: #4080D0;
             }
-            QPushButton:pressed {
-                background-color: #2A5F8F;
+            QPushButton#uploadBtn:pressed {
+                background-color: #3570B8;
             }
             QLabel {
                 color: #475569;
+                font-family: 'Inter', 'Roboto', 'Segoe UI', sans-serif;
             }
             QLabel#dimensionLabel {
                 color: #475569;
