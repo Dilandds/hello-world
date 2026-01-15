@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QFileDialog, QLabel, QMessageBox, QSplitter,
     QGroupBox, QGridLayout, QFrame, QSpacerItem, QSizePolicy,
-    QComboBox, QScrollArea
+    QComboBox
 )
 from PyQt5.QtCore import Qt, QSize, QTimer, QEvent
 from PyQt5.QtGui import QFont, QColor
@@ -118,22 +118,11 @@ class STLViewerWindow(QMainWindow):
         logger.info("init_ui: UI initialization complete")
     
     def create_left_panel(self):
-        """Create the left panel with upload controls wrapped in a scroll area."""
-        # Create scroll area
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        scroll_area.setFrameShape(QFrame.NoFrame)
-        scroll_area.setObjectName("leftPanelScroll")
-        
-        # Content widget that goes inside the scroll area
-        content_widget = QWidget()
-        content_widget.setObjectName("leftPanelContent")
-        layout = QVBoxLayout(content_widget)
+        """Create the left panel with upload controls."""
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
         layout.setAlignment(Qt.AlignTop)
         layout.setSpacing(15)
-        layout.setContentsMargins(10, 10, 10, 10)
         
         # Title label
         title_label = QLabel("STL Viewer")
@@ -158,25 +147,22 @@ class STLViewerWindow(QMainWindow):
         info_label.setWordWrap(True)
         layout.addWidget(info_label)
         
-        # Dimensions section (no fixed height - content-driven)
+        # Dimensions section
         self.dimensions_group = self.create_dimensions_section()
         layout.addWidget(self.dimensions_group)
         
-        # Surface Area section (no fixed height - content-driven)
+        # Surface Area section (sister widget)
         self.surface_area_group = self.create_surface_area_section()
         layout.addWidget(self.surface_area_group)
         
-        # Estimated Weight section (no fixed height - content-driven)
+        # Estimated Weight section
         self.weight_group = self.create_weight_section()
         layout.addWidget(self.weight_group)
         
         # Add stretch to push content to top
         layout.addStretch()
         
-        # Set the content widget inside the scroll area
-        scroll_area.setWidget(content_widget)
-        
-        return scroll_area
+        return panel
     
     def create_dimension_row(self, label_text, value_text="--"):
         """Create a styled dimension row with Alice Blue pill background and hover effect."""
