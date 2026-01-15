@@ -150,6 +150,10 @@ class STLViewerWindow(QMainWindow):
         self.dimensions_group = self.create_dimensions_section()
         layout.addWidget(self.dimensions_group)
         
+        # Surface Area section (sister widget)
+        self.surface_area_group = self.create_surface_area_section()
+        layout.addWidget(self.surface_area_group)
+        
         # Add stretch to push content to top
         layout.addStretch()
         
@@ -196,8 +200,10 @@ class STLViewerWindow(QMainWindow):
         return row_frame, value
     
     def eventFilter(self, obj, event):
-        """Handle hover events for dimension rows."""
-        if obj.objectName() == "dimensionRow":
+        """Handle hover events for dimension and surface area rows."""
+        obj_name = obj.objectName()
+        
+        if obj_name == "dimensionRow":
             if event.type() == QEvent.Enter:
                 obj.setStyleSheet("""
                     QFrame#dimensionRow {
@@ -209,6 +215,40 @@ class STLViewerWindow(QMainWindow):
                 obj.setStyleSheet("""
                     QFrame#dimensionRow {
                         background-color: #EBF4FA;
+                        border-radius: 8px;
+                    }
+                """)
+        elif obj_name == "surfaceRowStandard":
+            if event.type() == QEvent.Enter:
+                obj.setStyleSheet("""
+                    QFrame#surfaceRowStandard {
+                        background-color: #F0F0F0;
+                        border: 1px solid #D0D5DD;
+                        border-radius: 8px;
+                    }
+                """)
+            elif event.type() == QEvent.Leave:
+                obj.setStyleSheet("""
+                    QFrame#surfaceRowStandard {
+                        background-color: #FFFFFF;
+                        border: 1px solid #E0E6ED;
+                        border-radius: 8px;
+                    }
+                """)
+        elif obj_name == "surfaceRowHighlight":
+            if event.type() == QEvent.Enter:
+                obj.setStyleSheet("""
+                    QFrame#surfaceRowHighlight {
+                        background-color: #B2EBF2;
+                        border: 1px solid #00838F;
+                        border-radius: 8px;
+                    }
+                """)
+            elif event.type() == QEvent.Leave:
+                obj.setStyleSheet("""
+                    QFrame#surfaceRowHighlight {
+                        background-color: #E0F7FA;
+                        border: 1px solid #26A69A;
                         border-radius: 8px;
                     }
                 """)
@@ -249,12 +289,125 @@ class STLViewerWindow(QMainWindow):
         separator.setStyleSheet("background-color: #E0E6ED; max-height: 1px; margin: 6px 0;")
         card_layout.addWidget(separator)
         
-        # Volume and Surface Area rows
+        # Volume row only
         volume_row, self.dim_volume_value = self.create_dimension_row("Volume")
-        surface_row, self.dim_surface_value = self.create_dimension_row("Surface Area")
-        
         card_layout.addWidget(volume_row)
-        card_layout.addWidget(surface_row)
+        
+        return card
+    
+    def create_surface_area_row(self, label_text, value_text="--", row_type="standard"):
+        """Create a styled surface area row with different styles based on row_type."""
+        row_frame = QFrame()
+        row_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        row_frame.setFixedHeight(44)
+        
+        if row_type == "standard":
+            row_frame.setObjectName("surfaceRowStandard")
+        elif row_type == "highlight":
+            row_frame.setObjectName("surfaceRowHighlight")
+        else:
+            row_frame.setObjectName("surfaceRowStandard")
+        
+        row_layout = QHBoxLayout(row_frame)
+        row_layout.setContentsMargins(14, 8, 14, 8)
+        row_layout.setSpacing(0)
+        
+        # Label (left-anchored)
+        label = QLabel(label_text)
+        label.setObjectName("surfaceLabel")
+        label_font = QFont()
+        label_font.setPointSize(11)
+        label.setFont(label_font)
+        
+        # Spacer
+        spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        
+        # Value (right-anchored)
+        value = QLabel(value_text)
+        value.setObjectName("surfaceValue")
+        value_font = QFont()
+        value_font.setPointSize(13)
+        value_font.setBold(True)
+        value.setFont(value_font)
+        value.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        
+        row_layout.addWidget(label)
+        row_layout.addItem(spacer)
+        row_layout.addWidget(value)
+        
+        # Install event filter for hover effect
+        row_frame.installEventFilter(self)
+        
+        return row_frame, value
+    
+    def create_surface_area_section(self):
+        """Create the Surface Area floating info card."""
+        # Main card container
+        card = QFrame()
+        card.setObjectName("surfaceAreaCard")
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 16, 16, 16)
+        card_layout.setSpacing(10)
+        
+        # Header row with title and icon
+        header_layout = QHBoxLayout()
+        header_layout.setSpacing(8)
+        
+        # Card title
+        title_label = QLabel("Total Surface Area")
+        title_font = QFont()
+        title_font.setPointSize(14)
+        title_font.setBold(True)
+        title_label.setFont(title_font)
+        title_label.setStyleSheet("color: #2C3E50; margin-bottom: 4px;")
+        
+        # Tray/download icon (using unicode for simplicity)
+        icon_label = QLabel("⬇")
+        icon_label.setStyleSheet("color: #4A90E2; font-size: 16px;")
+        icon_label.setAlignment(Qt.AlignCenter)
+        
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
+        header_layout.addWidget(icon_label)
+        card_layout.addLayout(header_layout)
+        
+        # Total area row (standard - white background with border)
+        total_row, self.surface_total_value = self.create_surface_area_row("Total area", "--", "standard")
+        card_layout.addWidget(total_row)
+        
+        # Area in cm² row (highlight - cyan background with teal border)
+        area_cm_row, self.surface_cm_value = self.create_surface_area_row("Area (cm²)", "--", "highlight")
+        card_layout.addWidget(area_cm_row)
+        
+        # Information footer
+        footer_frame = QFrame()
+        footer_frame.setObjectName("surfaceFooter")
+        footer_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        footer_frame.setFixedHeight(32)
+        
+        footer_layout = QHBoxLayout(footer_frame)
+        footer_layout.setContentsMargins(10, 6, 10, 6)
+        footer_layout.setSpacing(8)
+        
+        # Info icon
+        info_icon = QLabel("ℹ")
+        info_icon.setStyleSheet("color: #718096; font-size: 12px;")
+        info_icon.setFixedWidth(16)
+        
+        # Disclaimer text
+        disclaimer = QLabel("Calculated surface area")
+        disclaimer_font = QFont()
+        disclaimer_font.setPointSize(9)
+        disclaimer.setFont(disclaimer_font)
+        disclaimer.setStyleSheet("color: #718096;")
+        
+        footer_layout.addWidget(info_icon)
+        footer_layout.addWidget(disclaimer)
+        footer_layout.addStretch()
+        
+        card_layout.addWidget(footer_frame)
         
         return card
     
@@ -265,7 +418,8 @@ class STLViewerWindow(QMainWindow):
             self.dim_height_value.setText("--")
             self.dim_depth_value.setText("--")
             self.dim_volume_value.setText("--")
-            self.dim_surface_value.setText("--")
+            self.surface_total_value.setText("--")
+            self.surface_cm_value.setText("--")
             return
         
         # Get bounding box dimensions
@@ -285,12 +439,18 @@ class STLViewerWindow(QMainWindow):
         except:
             surface_area = 0.0
         
+        # Convert surface area from mm² to cm²
+        surface_area_cm = surface_area / 100.0
+        
         # Update labels with formatted values
         self.dim_width_value.setText(f"{width:.2f} mm")
         self.dim_height_value.setText(f"{height:.2f} mm")
         self.dim_depth_value.setText(f"{depth:.2f} mm")
         self.dim_volume_value.setText(f"{volume:.2f} mm³")
-        self.dim_surface_value.setText(f"{surface_area:.2f} mm²")
+        
+        # Update surface area card
+        self.surface_total_value.setText(f"{surface_area:.2f} mm²")
+        self.surface_cm_value.setText(f"{surface_area_cm:.2f} cm²")
     
     def apply_styling(self):
         """Apply minimalistic styling with floating card design."""
@@ -330,6 +490,32 @@ class STLViewerWindow(QMainWindow):
             QFrame#dimensionRow {
                 background-color: #EBF4FA;
                 border-radius: 8px;
+            }
+            QFrame#surfaceAreaCard {
+                background-color: #FFFFFF;
+                border-radius: 12px;
+                border: none;
+            }
+            QFrame#surfaceRowStandard {
+                background-color: #FFFFFF;
+                border: 1px solid #E0E6ED;
+                border-radius: 8px;
+            }
+            QFrame#surfaceRowHighlight {
+                background-color: #E0F7FA;
+                border: 1px solid #26A69A;
+                border-radius: 8px;
+            }
+            QFrame#surfaceFooter {
+                background-color: #F8FAFC;
+                border: 1px solid #E2E8F0;
+                border-radius: 6px;
+            }
+            QLabel#surfaceLabel {
+                color: #718096;
+            }
+            QLabel#surfaceValue {
+                color: #1A202C;
             }
         """)
     
