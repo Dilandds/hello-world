@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QFileDialog, QLabel, QMessageBox, QSplitter,
     QGroupBox, QGridLayout, QFrame, QSpacerItem, QSizePolicy,
-    QComboBox
+    QComboBox, QScrollArea
 )
 from PyQt5.QtCore import Qt, QSize, QTimer, QEvent
 from PyQt5.QtGui import QFont, QColor
@@ -118,11 +118,22 @@ class STLViewerWindow(QMainWindow):
         logger.info("init_ui: UI initialization complete")
     
     def create_left_panel(self):
-        """Create the left panel with upload controls."""
-        panel = QWidget()
-        layout = QVBoxLayout(panel)
+        """Create the left panel with upload controls inside a scroll area."""
+        # Create scroll area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setObjectName("sidebarScrollArea")
+        scroll_area.setFrameShape(QFrame.NoFrame)
+        
+        # Create content widget for scroll area
+        content_widget = QWidget()
+        content_widget.setObjectName("sidebarContent")
+        layout = QVBoxLayout(content_widget)
         layout.setAlignment(Qt.AlignTop)
         layout.setSpacing(15)
+        layout.setContentsMargins(10, 10, 10, 10)
         
         # Title label
         title_label = QLabel("STL Viewer")
@@ -162,7 +173,10 @@ class STLViewerWindow(QMainWindow):
         # Add stretch to push content to top
         layout.addStretch()
         
-        return panel
+        # Set content widget to scroll area
+        scroll_area.setWidget(content_widget)
+        
+        return scroll_area
     
     def create_dimension_row(self, label_text, value_text="--"):
         """Create a styled dimension row with Alice Blue pill background and hover effect."""
