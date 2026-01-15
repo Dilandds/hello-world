@@ -7,10 +7,10 @@ from pathlib import Path
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QFileDialog, QLabel, QMessageBox, QSplitter,
-    QGroupBox, QGridLayout, QFrame
+    QGroupBox, QGridLayout, QFrame, QSpacerItem, QSizePolicy
 )
-from PyQt5.QtCore import Qt, QSize, QTimer
-from PyQt5.QtGui import QFont
+from PyQt5.QtCore import Qt, QSize, QTimer, QEvent
+from PyQt5.QtGui import QFont, QColor
 # Try QtInteractor first, fallback to offscreen if it fails
 try:
     from viewer_widget import STLViewerWidget
@@ -155,52 +155,108 @@ class STLViewerWindow(QMainWindow):
         
         return panel
     
+    def create_dimension_row(self, label_text, value_text="--"):
+        """Create a styled dimension row with Alice Blue pill background and hover effect."""
+        # Container frame for the row (pill style)
+        row_frame = QFrame()
+        row_frame.setObjectName("dimensionRow")
+        row_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        row_frame.setFixedHeight(44)
+        
+        row_layout = QHBoxLayout(row_frame)
+        row_layout.setContentsMargins(14, 8, 14, 8)
+        row_layout.setSpacing(0)
+        
+        # Label (left-anchored, secondary text)
+        label = QLabel(label_text)
+        label.setObjectName("dimensionLabel")
+        label_font = QFont()
+        label_font.setPointSize(11)
+        label.setFont(label_font)
+        
+        # Spacer to push value to the right
+        spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        
+        # Value (right-anchored, primary focus)
+        value = QLabel(value_text)
+        value.setObjectName("dimensionValue")
+        value_font = QFont()
+        value_font.setPointSize(13)
+        value_font.setBold(True)
+        value.setFont(value_font)
+        value.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        
+        row_layout.addWidget(label)
+        row_layout.addItem(spacer)
+        row_layout.addWidget(value)
+        
+        # Install event filter for hover effect
+        row_frame.installEventFilter(self)
+        
+        return row_frame, value
+    
+    def eventFilter(self, obj, event):
+        """Handle hover events for dimension rows."""
+        if obj.objectName() == "dimensionRow":
+            if event.type() == QEvent.Enter:
+                obj.setStyleSheet("""
+                    QFrame#dimensionRow {
+                        background-color: #D6E8F5;
+                        border-radius: 8px;
+                    }
+                """)
+            elif event.type() == QEvent.Leave:
+                obj.setStyleSheet("""
+                    QFrame#dimensionRow {
+                        background-color: #EBF4FA;
+                        border-radius: 8px;
+                    }
+                """)
+        return super().eventFilter(obj, event)
+    
     def create_dimensions_section(self):
-        """Create the dimensions display section."""
-        group = QGroupBox("Dimensions")
-        group_layout = QGridLayout(group)
-        group_layout.setSpacing(8)
+        """Create the floating info card dimensions display."""
+        # Main card container
+        card = QFrame()
+        card.setObjectName("dimensionsCard")
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         
-        # Create dimension labels
-        self.dim_width_label = QLabel("Width (X):")
-        self.dim_width_value = QLabel("--")
-        self.dim_width_value.setAlignment(Qt.AlignRight)
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 16, 16, 16)
+        card_layout.setSpacing(10)
         
-        self.dim_height_label = QLabel("Height (Y):")
-        self.dim_height_value = QLabel("--")
-        self.dim_height_value.setAlignment(Qt.AlignRight)
+        # Card title
+        title_label = QLabel("Dimensions")
+        title_font = QFont()
+        title_font.setPointSize(14)
+        title_font.setBold(True)
+        title_label.setFont(title_font)
+        title_label.setStyleSheet("color: #2C3E50; margin-bottom: 4px;")
+        card_layout.addWidget(title_label)
         
-        self.dim_depth_label = QLabel("Depth (Z):")
-        self.dim_depth_value = QLabel("--")
-        self.dim_depth_value.setAlignment(Qt.AlignRight)
+        # Dimension rows
+        width_row, self.dim_width_value = self.create_dimension_row("Length (X)")
+        height_row, self.dim_height_value = self.create_dimension_row("Width (Y)")
+        depth_row, self.dim_depth_value = self.create_dimension_row("Height (Z)")
         
-        # Add separator line
+        card_layout.addWidget(width_row)
+        card_layout.addWidget(height_row)
+        card_layout.addWidget(depth_row)
+        
+        # Subtle separator
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)
-        separator.setFrameShadow(QFrame.Sunken)
+        separator.setStyleSheet("background-color: #E0E6ED; max-height: 1px; margin: 6px 0;")
+        card_layout.addWidget(separator)
         
-        self.dim_volume_label = QLabel("Volume:")
-        self.dim_volume_value = QLabel("--")
-        self.dim_volume_value.setAlignment(Qt.AlignRight)
+        # Volume and Surface Area rows
+        volume_row, self.dim_volume_value = self.create_dimension_row("Volume")
+        surface_row, self.dim_surface_value = self.create_dimension_row("Surface Area")
         
-        self.dim_surface_label = QLabel("Surface:")
-        self.dim_surface_value = QLabel("--")
-        self.dim_surface_value.setAlignment(Qt.AlignRight)
+        card_layout.addWidget(volume_row)
+        card_layout.addWidget(surface_row)
         
-        # Add to grid layout
-        group_layout.addWidget(self.dim_width_label, 0, 0)
-        group_layout.addWidget(self.dim_width_value, 0, 1)
-        group_layout.addWidget(self.dim_height_label, 1, 0)
-        group_layout.addWidget(self.dim_height_value, 1, 1)
-        group_layout.addWidget(self.dim_depth_label, 2, 0)
-        group_layout.addWidget(self.dim_depth_value, 2, 1)
-        group_layout.addWidget(separator, 3, 0, 1, 2)
-        group_layout.addWidget(self.dim_volume_label, 4, 0)
-        group_layout.addWidget(self.dim_volume_value, 4, 1)
-        group_layout.addWidget(self.dim_surface_label, 5, 0)
-        group_layout.addWidget(self.dim_surface_value, 5, 1)
-        
-        return group
+        return card
     
     def update_dimensions(self, mesh):
         """Update the dimensions display with mesh data."""
@@ -237,42 +293,43 @@ class STLViewerWindow(QMainWindow):
         self.dim_surface_value.setText(f"{surface_area:.2f} mm²")
     
     def apply_styling(self):
-        """Apply minimalistic styling to the application."""
+        """Apply minimalistic styling with floating card design."""
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #f5f5f5;
+                background-color: #F0F3F6;
             }
             QPushButton {
-                background-color: #4a90e2;
+                background-color: #4A90E2;
                 color: white;
                 border: none;
-                border-radius: 5px;
-                padding: 10px;
+                border-radius: 8px;
+                padding: 12px 20px;
                 font-size: 14px;
                 font-weight: bold;
             }
             QPushButton:hover {
-                background-color: #357abd;
+                background-color: #357ABD;
             }
             QPushButton:pressed {
-                background-color: #2a5f8f;
+                background-color: #2A5F8F;
             }
             QLabel {
-                color: #333333;
+                color: #4A5568;
             }
-            QGroupBox {
-                font-weight: bold;
-                border: 1px solid #cccccc;
-                border-radius: 5px;
-                margin-top: 10px;
-                padding-top: 10px;
-                background-color: #ffffff;
+            QLabel#dimensionLabel {
+                color: #718096;
             }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-                color: #333333;
+            QLabel#dimensionValue {
+                color: #1A202C;
+            }
+            QFrame#dimensionsCard {
+                background-color: #FFFFFF;
+                border-radius: 12px;
+                border: none;
+            }
+            QFrame#dimensionRow {
+                background-color: #EBF4FA;
+                border-radius: 8px;
             }
         """)
     
