@@ -126,14 +126,31 @@ class STLViewerWindow(QMainWindow):
         scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         scroll_area.setObjectName("sidebarScrollArea")
         scroll_area.setFrameShape(QFrame.NoFrame)
+        scroll_area.setMinimumWidth(350)  # Prevent squishing
+        
+        # Style scroll area and viewport with light background
+        scroll_area.setStyleSheet("""
+            QScrollArea#sidebarScrollArea {
+                background-color: #F8FAFC;
+                border: none;
+            }
+            QScrollArea#sidebarScrollArea > QWidget > QWidget {
+                background-color: #F8FAFC;
+            }
+        """)
+        scroll_area.viewport().setStyleSheet("background-color: #F8FAFC;")
         
         # Create content widget for scroll area
         content_widget = QWidget()
         content_widget.setObjectName("sidebarContent")
+        content_widget.setStyleSheet("background-color: #F8FAFC;")
+        content_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        
         layout = QVBoxLayout(content_widget)
         layout.setAlignment(Qt.AlignTop)
         layout.setSpacing(15)
-        layout.setContentsMargins(10, 10, 10, 10)
+        # Right margin of 20px prevents scrollbar overlap
+        layout.setContentsMargins(10, 10, 20, 10)
         
         # Title label
         title_label = QLabel("STL Viewer")
@@ -312,7 +329,7 @@ class STLViewerWindow(QMainWindow):
         # Main card container
         card = QFrame()
         card.setObjectName("dimensionsCard")
-        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(16, 16, 16, 16)
@@ -398,7 +415,7 @@ class STLViewerWindow(QMainWindow):
         # Main card container
         card = QFrame()
         card.setObjectName("surfaceAreaCard")
-        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(16, 16, 16, 16)
