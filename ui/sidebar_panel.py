@@ -961,10 +961,10 @@ class SidebarPanel(QWidget):
         story = []
         
         # Title
-        story.append(Paragraph("Technical Report", title_style))
+        story.append(Paragraph("STL Analysis Report", title_style))
         
         # Subtitle with file info and date
-        subtitle_text = f"{self.current_stl_filename or 'Unknown'} | {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
+        subtitle_text = f"File: {self.current_stl_filename or 'Unknown'} | Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         story.append(Paragraph(subtitle_text, subtitle_style))
         story.append(Spacer(1, 10))
         
@@ -1004,120 +1004,51 @@ class SidebarPanel(QWidget):
         
         # Surface Area (if checkbox selected and available)
         if self.report_surface_area_cb.is_checked() and self.current_surface_area_cm2 > 0:
-            story.append(Spacer(1, 12))
-            story.append(Paragraph("Total Surface Area (Galvanization)", section_style))
-            
-            # Calculate surface area in mm² from cm²
-            surface_area_mm2 = self.current_surface_area_cm2 * 100.0
-            
+            story.append(Spacer(1, 8))
+            story.append(Paragraph("Surface Area (Galvanizing Data)", section_style))
             surface_data = [
                 ['Property', 'Value'],
-                ['Total Surface Area', f"{surface_area_mm2:.2f} mm²"],
-                ['Surface (cm²)', f"{self.current_surface_area_cm2:.2f} cm²"],
+                ['Total Surface Area', f"{self.current_surface_area_cm2:.2f} cm²"],
             ]
             surface_table = Table(surface_data, colWidths=col_widths)
             surface_table.setStyle(table_style)
             story.append(surface_table)
-            
-            # Add info note about surface area
-            info_style = ParagraphStyle(
-                'InfoStyle',
-                parent=styles['Normal'],
-                fontSize=9,
-                spaceBefore=6,
-                spaceAfter=8,
-                textColor=colors.HexColor('#64748B'),
-                leftIndent=10
-            )
-            info_text = "Info: Sum of the areas of all triangles of the 3D mesh. Useful for estimating galvanization or surface treatment costs."
-            story.append(Paragraph(info_text, info_style))
         
-        # Adjusted Dimensions section (if checkbox selected and scaling applied)
+        # Adjusted Dimensions (if checkbox selected and scaling applied)
         if self.report_adjusted_dims_cb.is_checked() and self.has_scaled_data:
-            story.append(Spacer(1, 12))
-            
-            # Adjust to Target Weight section (scale factor)
-            story.append(Paragraph("Adjust to Target Weight", section_style))
-            scale_factor_text = self.scale_factor_row.value_label.text()
-            scale_factor_value = scale_factor_text.replace("--", "").strip()
-            if scale_factor_value:
-                # Extract just the number
-                try:
-                    scale_num = float(scale_factor_value)
-                    scale_factor_display = f"{scale_num:.6f}x"
-                except:
-                    scale_factor_display = scale_factor_value
-                
-                scale_data = [
-                    ['Property', 'Value'],
-                    ['Scale Factor', scale_factor_display],
-                ]
-                scale_table = Table(scale_data, colWidths=col_widths)
-                scale_table.setStyle(table_style)
-                story.append(scale_table)
-            
-            story.append(Spacer(1, 12))
-            
-            # New Dimensions section
-            story.append(Paragraph("New Dimensions", section_style))
+            story.append(Spacer(1, 8))
+            story.append(Paragraph("Adjusted Dimensions", section_style))
             
             # Get current adjusted values from display
-            new_x_text = self.new_x_row.value_label.text().replace("--", "N/A")
-            new_y_text = self.new_y_row.value_label.text().replace("--", "N/A")
-            new_z_text = self.new_z_row.value_label.text().replace("--", "N/A")
-            new_volume_text = self.new_volume_row.value_label.text().replace("--", "N/A")
-            
             adjusted_data = [
                 ['Property', 'Value'],
-                ['Length (X)', new_x_text],
-                ['Width (Y)', new_y_text],
-                ['Height (Z)', new_z_text],
-                ['New Volume', new_volume_text],
+                ['Scale Factor', self.scale_factor_row.value_label.text()],
+                ['New Length (X)', self.new_x_row.value_label.text()],
+                ['New Width (Y)', self.new_y_row.value_label.text()],
+                ['New Height (Z)', self.new_z_row.value_label.text()],
+                ['New Volume', self.new_volume_row.value_label.text()],
             ]
             adjusted_table = Table(adjusted_data, colWidths=col_widths)
             adjusted_table.setStyle(table_style)
             story.append(adjusted_table)
             
-            story.append(Spacer(1, 12))
-            
-            # Weight Comparison section
+            # Weight comparison
+            story.append(Spacer(1, 8))
             story.append(Paragraph("Weight Comparison", section_style))
             
-            original_weight_text = self.original_weight_row.value_label.text().replace("--", "N/A")
-            target_weight_text = self.target_weight_row.value_label.text().replace("--", "N/A")
+            # Get material name
+            material_index = self.material_combo.currentIndex()
+            material_name = self.MATERIALS[material_index][0] if 0 <= material_index < len(self.MATERIALS) else "Unknown"
             
             weight_data = [
-                ['Type', 'Weight'],
-                ['Original Weight', original_weight_text],
-                ['Target Weight', target_weight_text],
+                ['Property', 'Value'],
+                ['Material', material_name],
+                ['Original Weight', self.original_weight_row.value_label.text()],
+                ['Target Weight', self.target_weight_row.value_label.text()],
             ]
             weight_table = Table(weight_data, colWidths=col_widths)
             weight_table.setStyle(table_style)
             story.append(weight_table)
-            
-            story.append(Spacer(1, 12))
-            
-            # Material section
-            story.append(Paragraph("Material", section_style))
-            
-            # Get material name and density
-            material_index = self.material_combo.currentIndex()
-            material_name = "Unknown"
-            material_density = "0"
-            if 0 <= material_index < len(self.MATERIALS):
-                material_name, density = self.MATERIALS[material_index]
-                material_density = f"{density} g/cm³"
-            
-            # Get final weight (target weight)
-            final_weight = target_weight_text
-            
-            material_data = [
-                ['Type', 'Density', 'Final Weight'],
-                [material_name, material_density, final_weight],
-            ]
-            material_table = Table(material_data, colWidths=[60*mm, 50*mm, 50*mm])
-            material_table.setStyle(table_style)
-            story.append(material_table)
         
         # Build PDF
         doc.build(story)
