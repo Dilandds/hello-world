@@ -92,6 +92,37 @@ This application is optimized for handling large STL files smoothly:
 - Optimized mesh rendering for large datasets
 - Configurable quality settings for balance between performance and visual quality
 
+## Building the Application
+
+### macOS - Build DMG
+
+Run the build script to create a macOS DMG installer:
+
+```bash
+./build_mac.sh
+```
+
+This will:
+- Create the `.app` bundle
+- Generate a DMG installer file
+- Output: `STL_Viewer-1.0.0-macOS.dmg`
+
+**Requirements:**
+- PyInstaller (installed automatically if missing)
+- `create-dmg` tool (installed via Homebrew if missing)
+
+### Windows - Get EXE via GitHub Actions
+
+1. **Push code to GitHub** (or use GitHub Actions workflow dispatch)
+2. **Wait for build to complete** (~5-10 minutes)
+3. **Download artifact:**
+   - Go to: `https://github.com/YOUR_USERNAME/Jewellery_new/actions`
+   - Click on the latest workflow run
+   - Download "STL-Viewer-Windows" artifact
+   - Extract the `.exe` file
+
+The GitHub Actions workflow automatically builds both macOS and Windows versions.
+
 ## File Structure
 
 ```
@@ -101,6 +132,9 @@ Jewellery_new/
 ├── viewer_widget.py        # 3D viewer widget (PyVista)
 ├── requirements.txt       # Python dependencies
 ├── run.sh                 # Convenience script to run the app (macOS/Linux)
+├── build_mac.sh           # Build script for macOS DMG
+├── stl_viewer_mac.spec    # PyInstaller spec for macOS
+├── stl_viewer_windows.spec # PyInstaller spec for Windows
 └── README.md              # This file
 ```
 
