@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QSizePolicy, QFrame, QSpacerItem, QApplication
 )
 from PyQt5.QtCore import Qt, QEvent, pyqtSignal, QPropertyAnimation, QEasingCurve, QSettings
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QFontMetrics
 from ui.styles import default_theme
 
 logger = logging.getLogger(__name__)
@@ -62,21 +62,22 @@ class ToolbarButton(QPushButton):
         left = m.left()
         right = m.right()
 
-        icon_w = self.icon_label.sizeHint().width() if self.icon_label.isVisible() else 0
+        icon_w = 18  # Fixed icon width
         text = (self.text_label.text() or "").strip()
 
         if text:
-            # sizeHint() is more reliable than raw font metrics under HiDPI
-            label_w = self.text_label.sizeHint().width()
+            # Use QFontMetrics with the actual font for reliable measurement
+            fm = QFontMetrics(self.text_label.font())
+            label_w = fm.horizontalAdvance(text)
             spacing = self._layout.spacing()
         else:
             label_w = 0
             spacing = 0
 
         # Extra padding to avoid pixel-level clipping
-        self.setMinimumWidth(left + right + icon_w + spacing + label_w + 14)
-        self.adjustSize()
-        self.updateGeometry()
+        min_width = left + right + icon_w + spacing + label_w + 20
+        self.setMinimumWidth(min_width)
+        self.text_label.setMinimumWidth(label_w + 4)
     
     def _apply_default_style(self):
         """Apply the default button style."""
