@@ -1,0 +1,373 @@
+"""
+Top horizontal toolbar for 3D view controls.
+"""
+import logging
+from PyQt5.QtWidgets import (
+    QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QLabel,
+    QSizePolicy, QFrame, QSpacerItem
+)
+from PyQt5.QtCore import Qt, QEvent, pyqtSignal, QPropertyAnimation, QEasingCurve, QSettings
+from PyQt5.QtGui import QFont
+from ui.styles import default_theme
+
+logger = logging.getLogger(__name__)
+
+
+class ToolbarButton(QPushButton):
+    """A styled toolbar button with icon and text."""
+    
+    def __init__(self, icon_text, label_text, tooltip, parent=None):
+        super().__init__(parent)
+        self.icon_text = icon_text
+        self.label_text = label_text
+        self._is_active = False
+        
+        # Create layout for icon + text
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(10, 6, 12, 6)
+        layout.setSpacing(6)
+        
+        # Icon
+        self.icon_label = QLabel(icon_text)
+        self.icon_label.setStyleSheet(f"color: {default_theme.icon_blue}; font-size: 14px; background: transparent;")
+        self.icon_label.setAlignment(Qt.AlignCenter)
+        self.icon_label.setFixedWidth(18)
+        layout.addWidget(self.icon_label)
+        
+        # Text label
+        self.text_label = QLabel(label_text)
+        self.text_label.setStyleSheet(f"color: {default_theme.text_primary}; font-size: 11px; background: transparent;")
+        label_font = QFont()
+        label_font.setPointSize(11)
+        self.text_label.setFont(label_font)
+        layout.addWidget(self.text_label)
+        
+        # Configure button
+        self.setToolTip(tooltip)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        self.setMinimumHeight(34)
+        
+        self._apply_default_style()
+        self.installEventFilter(self)
+    
+    def _apply_default_style(self):
+        """Apply the default button style."""
+        if self._is_active:
+            self.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {default_theme.row_bg_highlight};
+                    border: 1px solid {default_theme.border_highlight};
+                    border-radius: 6px;
+                }}
+            """)
+        else:
+            self.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {default_theme.row_bg_standard};
+                    border: 1px solid transparent;
+                    border-radius: 6px;
+                }}
+            """)
+    
+    def _apply_hover_style(self):
+        """Apply the hover style."""
+        if self._is_active:
+            self.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {default_theme.row_bg_highlight_hover};
+                    border: 1px solid {default_theme.border_highlight};
+                    border-radius: 6px;
+                }}
+            """)
+        else:
+            self.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {default_theme.row_bg_hover};
+                    border: 1px solid {default_theme.border_light};
+                    border-radius: 6px;
+                }}
+            """)
+    
+    def _apply_disabled_style(self):
+        """Apply disabled style."""
+        self.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {default_theme.button_default_bg};
+                border: 1px solid transparent;
+                border-radius: 6px;
+            }}
+        """)
+        self.icon_label.setStyleSheet(f"color: {default_theme.text_secondary}; font-size: 14px; background: transparent;")
+        self.text_label.setStyleSheet(f"color: {default_theme.text_secondary}; font-size: 11px; background: transparent;")
+    
+    def set_active(self, active):
+        """Set the active state of the button."""
+        self._is_active = active
+        self._apply_default_style()
+    
+    def set_label(self, text):
+        """Update the button label text."""
+        self.label_text = text
+        self.text_label.setText(text)
+    
+    def set_icon(self, icon_text):
+        """Update the button icon."""
+        self.icon_text = icon_text
+        self.icon_label.setText(icon_text)
+    
+    def eventFilter(self, obj, event):
+        """Handle hover events."""
+        if obj == self:
+            if not self.isEnabled():
+                return super().eventFilter(obj, event)
+            if event.type() == QEvent.Enter:
+                self._apply_hover_style()
+            elif event.type() == QEvent.Leave:
+                self._apply_default_style()
+        return super().eventFilter(obj, event)
+    
+    def setEnabled(self, enabled):
+        """Override setEnabled to update styling."""
+        super().setEnabled(enabled)
+        if enabled:
+            self._apply_default_style()
+            self.icon_label.setStyleSheet(f"color: {default_theme.icon_blue}; font-size: 14px; background: transparent;")
+            self.text_label.setStyleSheet(f"color: {default_theme.text_primary}; font-size: 11px; background: transparent;")
+        else:
+            self._apply_disabled_style()
+
+
+class ViewControlsToolbar(QWidget):
+    """Collapsible horizontal toolbar for 3D view controls."""
+    
+    # Signals for viewer controls
+    toggle_grid = pyqtSignal()
+    toggle_theme = pyqtSignal()
+    toggle_wireframe = pyqtSignal()
+    reset_rotation = pyqtSignal()
+    view_front = pyqtSignal()
+    view_side = pyqtSignal()
+    view_top = pyqtSignal()
+    toggle_fullscreen = pyqtSignal()
+    load_file = pyqtSignal()
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        
+        # State tracking
+        self.grid_enabled = True
+        self.dark_theme = False
+        self.wireframe_enabled = False
+        self.is_fullscreen = False
+        self.stl_loaded = False
+        
+        # Load saved state
+        self.settings = QSettings("STLViewer", "Toolbar")
+        self.is_expanded = self.settings.value("toolbar_expanded", True, type=bool)
+        
+        self.init_ui()
+        self._update_expanded_state(animate=False)
+    
+    def init_ui(self):
+        """Initialize the toolbar UI."""
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        # Container frame for styling
+        self.container = QFrame()
+        self.container.setObjectName("toolbarContainer")
+        self.container.setStyleSheet(f"""
+            QFrame#toolbarContainer {{
+                background-color: {default_theme.card_background};
+                border-bottom: 1px solid {default_theme.border_standard};
+            }}
+        """)
+        
+        container_layout = QVBoxLayout(self.container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(0)
+        
+        # Expanded toolbar content
+        self.toolbar_content = QWidget()
+        self.toolbar_content.setObjectName("toolbarContent")
+        content_layout = QHBoxLayout(self.toolbar_content)
+        content_layout.setContentsMargins(12, 8, 12, 8)
+        content_layout.setSpacing(6)
+        
+        # === Display & Mode Controls ===
+        self.grid_btn = ToolbarButton("⊞", "Grid", "Toggle background grid on/off")
+        self.grid_btn.set_active(True)
+        self.grid_btn.clicked.connect(self._on_grid_clicked)
+        content_layout.addWidget(self.grid_btn)
+        
+        self.theme_btn = ToolbarButton("☀", "Light", "Switch between light and dark theme")
+        self.theme_btn.clicked.connect(self._on_theme_clicked)
+        content_layout.addWidget(self.theme_btn)
+        
+        self.wireframe_btn = ToolbarButton("◇", "Solid", "Toggle between solid and wireframe view")
+        self.wireframe_btn.clicked.connect(self._on_wireframe_clicked)
+        content_layout.addWidget(self.wireframe_btn)
+        
+        # Spacer between groups
+        content_layout.addSpacerItem(QSpacerItem(16, 0, QSizePolicy.Fixed, QSizePolicy.Minimum))
+        
+        # === View Orientation Controls ===
+        self.reset_btn = ToolbarButton("↺", "Reset", "Reset view to default rotation")
+        self.reset_btn.clicked.connect(self._on_reset_clicked)
+        self.reset_btn.setEnabled(False)
+        content_layout.addWidget(self.reset_btn)
+        
+        self.front_btn = ToolbarButton("⬚", "Front", "View model from front")
+        self.front_btn.clicked.connect(self._on_front_clicked)
+        self.front_btn.setEnabled(False)
+        content_layout.addWidget(self.front_btn)
+        
+        self.side_btn = ToolbarButton("⊏", "Side", "View model from right side")
+        self.side_btn.clicked.connect(self._on_side_clicked)
+        self.side_btn.setEnabled(False)
+        content_layout.addWidget(self.side_btn)
+        
+        self.top_btn = ToolbarButton("⊤", "Top", "View model from top")
+        self.top_btn.clicked.connect(self._on_top_clicked)
+        self.top_btn.setEnabled(False)
+        content_layout.addWidget(self.top_btn)
+        
+        # Spacer between groups
+        content_layout.addSpacerItem(QSpacerItem(16, 0, QSizePolicy.Fixed, QSizePolicy.Minimum))
+        
+        # === Utility Actions ===
+        self.fullscreen_btn = ToolbarButton("⛶", "Fullscreen", "Toggle fullscreen mode")
+        self.fullscreen_btn.clicked.connect(self._on_fullscreen_clicked)
+        content_layout.addWidget(self.fullscreen_btn)
+        
+        self.load_btn = ToolbarButton("📂", "Load File", "Load or replace STL file")
+        self.load_btn.clicked.connect(self._on_load_clicked)
+        content_layout.addWidget(self.load_btn)
+        
+        # Flexible spacer
+        content_layout.addStretch()
+        
+        # Collapse button (at the end)
+        self.collapse_btn = ToolbarButton("▲", "", "Hide Controls")
+        self.collapse_btn.clicked.connect(self._toggle_expanded)
+        self.collapse_btn.setFixedWidth(36)
+        content_layout.addWidget(self.collapse_btn)
+        
+        container_layout.addWidget(self.toolbar_content)
+        
+        # Collapsed strip (only shown when collapsed)
+        self.collapsed_strip = QWidget()
+        self.collapsed_strip.setObjectName("collapsedStrip")
+        self.collapsed_strip.setFixedHeight(28)
+        strip_layout = QHBoxLayout(self.collapsed_strip)
+        strip_layout.setContentsMargins(12, 4, 12, 4)
+        strip_layout.setSpacing(0)
+        
+        strip_layout.addStretch()
+        
+        self.expand_btn = ToolbarButton("▼", "", "Show Controls")
+        self.expand_btn.clicked.connect(self._toggle_expanded)
+        self.expand_btn.setFixedWidth(36)
+        self.expand_btn.setFixedHeight(22)
+        strip_layout.addWidget(self.expand_btn)
+        
+        strip_layout.addStretch()
+        
+        container_layout.addWidget(self.collapsed_strip)
+        
+        main_layout.addWidget(self.container)
+    
+    def _toggle_expanded(self):
+        """Toggle the expanded/collapsed state."""
+        self.is_expanded = not self.is_expanded
+        self.settings.setValue("toolbar_expanded", self.is_expanded)
+        self._update_expanded_state(animate=True)
+    
+    def _update_expanded_state(self, animate=True):
+        """Update the UI based on expanded/collapsed state."""
+        if self.is_expanded:
+            self.toolbar_content.setVisible(True)
+            self.collapsed_strip.setVisible(False)
+            self.collapse_btn.setToolTip("Hide Controls")
+        else:
+            self.toolbar_content.setVisible(False)
+            self.collapsed_strip.setVisible(True)
+            self.expand_btn.setToolTip("Show Controls")
+    
+    def set_stl_loaded(self, loaded):
+        """Enable/disable view controls based on STL loaded state."""
+        self.stl_loaded = loaded
+        self.reset_btn.setEnabled(loaded)
+        self.front_btn.setEnabled(loaded)
+        self.side_btn.setEnabled(loaded)
+        self.top_btn.setEnabled(loaded)
+    
+    def _on_grid_clicked(self):
+        """Handle grid toggle."""
+        self.grid_enabled = not self.grid_enabled
+        self.grid_btn.set_active(self.grid_enabled)
+        self.toggle_grid.emit()
+    
+    def _on_theme_clicked(self):
+        """Handle theme toggle."""
+        self.dark_theme = not self.dark_theme
+        if self.dark_theme:
+            self.theme_btn.set_label("Dark")
+            self.theme_btn.set_icon("🌙")
+        else:
+            self.theme_btn.set_label("Light")
+            self.theme_btn.set_icon("☀")
+        self.theme_btn.set_active(self.dark_theme)
+        self.toggle_theme.emit()
+    
+    def _on_wireframe_clicked(self):
+        """Handle wireframe toggle."""
+        self.wireframe_enabled = not self.wireframe_enabled
+        if self.wireframe_enabled:
+            self.wireframe_btn.set_label("Wireframe")
+            self.wireframe_btn.set_icon("◈")
+        else:
+            self.wireframe_btn.set_label("Solid")
+            self.wireframe_btn.set_icon("◇")
+        self.wireframe_btn.set_active(self.wireframe_enabled)
+        self.toggle_wireframe.emit()
+    
+    def _on_reset_clicked(self):
+        """Handle reset rotation."""
+        self.reset_rotation.emit()
+    
+    def _on_front_clicked(self):
+        """Handle front view."""
+        self.view_front.emit()
+    
+    def _on_side_clicked(self):
+        """Handle side view."""
+        self.view_side.emit()
+    
+    def _on_top_clicked(self):
+        """Handle top view."""
+        self.view_top.emit()
+    
+    def _on_fullscreen_clicked(self):
+        """Handle fullscreen toggle."""
+        self.is_fullscreen = not self.is_fullscreen
+        if self.is_fullscreen:
+            self.fullscreen_btn.set_label("Exit")
+            self.fullscreen_btn.set_icon("⛶")
+        else:
+            self.fullscreen_btn.set_label("Fullscreen")
+            self.fullscreen_btn.set_icon("⛶")
+        self.fullscreen_btn.set_active(self.is_fullscreen)
+        self.toggle_fullscreen.emit()
+    
+    def _on_load_clicked(self):
+        """Handle load file."""
+        self.load_file.emit()
+    
+    def reset_fullscreen_state(self):
+        """Reset fullscreen button state (called when exiting fullscreen externally)."""
+        self.is_fullscreen = False
+        self.fullscreen_btn.set_label("Fullscreen")
+        self.fullscreen_btn.set_active(False)

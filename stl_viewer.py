@@ -5,7 +5,7 @@ import sys
 import logging
 from pathlib import Path
 from PyQt5.QtWidgets import (
-    QMainWindow, QWidget, QHBoxLayout, QFileDialog,
+    QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QFileDialog,
     QMessageBox, QSplitter, QFrame, QApplication
 )
 from PyQt5.QtCore import Qt
@@ -19,6 +19,7 @@ except Exception as e:
     USE_OFFSCREEN = True
 
 from ui.sidebar_panel import SidebarPanel
+from ui.toolbar import ViewControlsToolbar
 from ui.styles import get_global_stylesheet, default_theme
 from core.mesh_calculator import MeshCalculator
 
@@ -80,6 +81,19 @@ class STLViewerWindow(QMainWindow):
         splitter.addWidget(self.sidebar_panel)
         logger.info("init_ui: Sidebar panel created")
         
+        # Create right panel container (toolbar + viewer)
+        right_container = QWidget()
+        right_layout = QVBoxLayout(right_container)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(0)
+        
+        # Create toolbar
+        logger.info("init_ui: Creating toolbar...")
+        self.toolbar = ViewControlsToolbar()
+        self._connect_toolbar_signals()
+        right_layout.addWidget(self.toolbar)
+        logger.info("init_ui: Toolbar created")
+        
         debug_print("init_ui: Creating 3D viewer widget (this may take a moment)...")
         logger.info("init_ui: Creating 3D viewer widget (this may take a moment)...")
         try:
@@ -94,7 +108,7 @@ class STLViewerWindow(QMainWindow):
                 self.viewer_widget = STLViewerWidgetOffscreen()
                 debug_print("init_ui: 3D viewer widget (Offscreen) created successfully")
                 logger.info("init_ui: 3D viewer widget (Offscreen) created successfully")
-            splitter.addWidget(self.viewer_widget)
+            right_layout.addWidget(self.viewer_widget, 1)  # Add with stretch factor
         except Exception as e:
             debug_print(f"init_ui: ERROR creating viewer widget: {e}")
             logger.error(f"init_ui: Error creating viewer widget: {e}", exc_info=True)
@@ -104,13 +118,16 @@ class STLViewerWindow(QMainWindow):
                 logger.info("init_ui: Trying offscreen renderer as fallback...")
                 from viewer_widget_offscreen import STLViewerWidgetOffscreen
                 self.viewer_widget = STLViewerWidgetOffscreen()
-                splitter.addWidget(self.viewer_widget)
+                right_layout.addWidget(self.viewer_widget, 1)
                 debug_print("init_ui: Offscreen renderer fallback successful")
                 logger.info("init_ui: Offscreen renderer fallback successful")
             except Exception as e2:
                 debug_print(f"init_ui: Offscreen fallback also failed: {e2}")
                 logger.error(f"init_ui: Offscreen fallback also failed: {e2}", exc_info=True)
                 raise
+        
+        # Add right container to splitter
+        splitter.addWidget(right_container)
         
         logger.info("init_ui: Configuring splitter...")
         splitter.setSizes([200, 1000])
@@ -124,6 +141,101 @@ class STLViewerWindow(QMainWindow):
     def apply_styling(self):
         """Apply minimalistic styling with floating card design."""
         self.setStyleSheet(get_global_stylesheet())
+    
+    def _connect_toolbar_signals(self):
+        """Connect toolbar signals to handler methods."""
+        self.toolbar.toggle_grid.connect(self._toggle_grid)
+        self.toolbar.toggle_theme.connect(self._toggle_theme)
+        self.toolbar.toggle_wireframe.connect(self._toggle_wireframe)
+        self.toolbar.reset_rotation.connect(self._reset_rotation)
+        self.toolbar.view_front.connect(self._view_front)
+        self.toolbar.view_side.connect(self._view_side)
+        self.toolbar.view_top.connect(self._view_top)
+        self.toolbar.toggle_fullscreen.connect(self._toggle_fullscreen)
+        self.toolbar.load_file.connect(self.upload_stl_file)
+    
+    def _toggle_grid(self):
+        """Toggle the background grid."""
+        if hasattr(self.viewer_widget, 'plotter') and self.viewer_widget.plotter is not None:
+            try:
+                if self.toolbar.grid_enabled:
+                    self.viewer_widget.plotter.show_grid()
+                else:
+                    self.viewer_widget.plotter.remove_bounds_axes()
+            except Exception as e:
+                logger.warning(f"Could not toggle grid: {e}")
+    
+    def _toggle_theme(self):
+        """Toggle between light and dark viewer theme."""
+        if hasattr(self.viewer_widget, 'plotter') and self.viewer_widget.plotter is not None:
+            try:
+                if self.toolbar.dark_theme:
+                    self.viewer_widget.plotter.background_color = '#1a1a2e'
+                else:
+                    self.viewer_widget.plotter.background_color = 'white'
+            except Exception as e:
+                logger.warning(f"Could not toggle theme: {e}")
+    
+    def _toggle_wireframe(self):
+        """Toggle wireframe display mode."""
+        if hasattr(self.viewer_widget, 'current_actor') and self.viewer_widget.current_actor is not None:
+            try:
+                if self.toolbar.wireframe_enabled:
+                    self.viewer_widget.current_actor.GetProperty().SetRepresentationToWireframe()
+                else:
+                    self.viewer_widget.current_actor.GetProperty().SetRepresentationToSurface()
+                self.viewer_widget.plotter.render()
+            except Exception as e:
+                logger.warning(f"Could not toggle wireframe: {e}")
+    
+    def _reset_rotation(self):
+        """Reset view to default isometric rotation."""
+        if hasattr(self.viewer_widget, 'plotter') and self.viewer_widget.plotter is not None:
+            try:
+                self.viewer_widget.plotter.reset_camera()
+                self.viewer_widget.plotter.view_isometric()
+            except Exception as e:
+                logger.warning(f"Could not reset rotation: {e}")
+    
+    def _view_front(self):
+        """Set camera to front view."""
+        if hasattr(self.viewer_widget, 'plotter') and self.viewer_widget.plotter is not None:
+            try:
+                self.viewer_widget.plotter.view_yz()
+            except Exception as e:
+                logger.warning(f"Could not set front view: {e}")
+    
+    def _view_side(self):
+        """Set camera to side view."""
+        if hasattr(self.viewer_widget, 'plotter') and self.viewer_widget.plotter is not None:
+            try:
+                self.viewer_widget.plotter.view_xz()
+            except Exception as e:
+                logger.warning(f"Could not set side view: {e}")
+    
+    def _view_top(self):
+        """Set camera to top view."""
+        if hasattr(self.viewer_widget, 'plotter') and self.viewer_widget.plotter is not None:
+            try:
+                self.viewer_widget.plotter.view_xy()
+            except Exception as e:
+                logger.warning(f"Could not set top view: {e}")
+    
+    def _toggle_fullscreen(self):
+        """Toggle fullscreen mode."""
+        if self.toolbar.is_fullscreen:
+            self.showFullScreen()
+        else:
+            self.showNormal()
+    
+    def keyPressEvent(self, event):
+        """Handle key press events."""
+        if event.key() == Qt.Key_Escape and self.isFullScreen():
+            self.showNormal()
+            self.toolbar.reset_fullscreen_state()
+        else:
+            super().keyPressEvent(event)
+
     
     def upload_stl_file(self):
         """Open file dialog and load selected STL file."""
@@ -163,6 +275,8 @@ class STLViewerWindow(QMainWindow):
                 # Update window title with filename
                 filename = Path(file_path).name
                 self.setWindowTitle(f"STL 3D Viewer - {filename}")
+                # Enable toolbar controls
+                self.toolbar.set_stl_loaded(True)
                 # Update dimensions display
                 if hasattr(self.viewer_widget, 'current_mesh'):
                     mesh = self.viewer_widget.current_mesh
