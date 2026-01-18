@@ -243,6 +243,77 @@ def get_global_stylesheet(theme=None):
         QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
             background: none;
         }}
+        QFrame#adjustWeightCard {{
+            background-color: {theme.card_background};
+            border-radius: 12px;
+            border: none;
+        }}
+        QFrame#scaleRowStandard {{
+            background-color: {theme.row_bg_standard};
+            border-radius: 8px;
+        }}
+        QFrame#scaleRowHighlight {{
+            background-color: {theme.row_bg_highlight};
+            border: 1px solid {theme.border_highlight};
+            border-radius: 8px;
+        }}
+        QFrame#scaleRowComparison {{
+            background-color: #FFF7ED;
+            border-left: 4px solid #FB923C;
+            border-radius: 8px;
+        }}
+        QLineEdit#targetWeightInput {{
+            background-color: {theme.input_bg};
+            border: 1px solid {theme.input_border};
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 13px;
+            color: {theme.text_primary};
+        }}
+        QLineEdit#targetWeightInput:hover {{
+            border: 1px solid {theme.input_border_hover};
+        }}
+        QLineEdit#targetWeightInput:focus {{
+            border: 2px solid {theme.button_primary};
+        }}
+        QPushButton#calculateScaleBtn {{
+            background-color: {theme.button_primary};
+            color: {theme.text_white};
+            border: none;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: bold;
+        }}
+        QPushButton#calculateScaleBtn:hover {{
+            background-color: {theme.button_primary_hover};
+        }}
+        QPushButton#calculateScaleBtn:pressed {{
+            background-color: {theme.button_primary_pressed};
+        }}
+        QPushButton#calculateScaleBtn:disabled {{
+            background-color: {theme.button_default_bg};
+            color: {theme.text_secondary};
+        }}
+        QPushButton#exportScaledBtn {{
+            background-color: #10B981;
+            color: {theme.text_white};
+            border: none;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: bold;
+        }}
+        QPushButton#exportScaledBtn:hover {{
+            background-color: #059669;
+        }}
+        QPushButton#exportScaledBtn:pressed {{
+            background-color: #047857;
+        }}
+        QPushButton#exportScaledBtn:disabled {{
+            background-color: {theme.button_default_bg};
+            color: {theme.text_secondary};
+        }}
     """
 
 

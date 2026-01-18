@@ -349,3 +349,150 @@ class Separator(QFrame):
         super().__init__(parent)
         self.setFrameShape(QFrame.HLine)
         self.setStyleSheet(f"background-color: {default_theme.separator}; max-height: 1px; margin: 6px 0;")
+
+
+class ScaleResultRow(QFrame):
+    """A reusable scale result row component with hover effect."""
+    
+    def __init__(self, label_text, value_text="--", row_type="standard", parent=None):
+        super().__init__(parent)
+        self.row_type = row_type
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setFixedHeight(44)
+        
+        if row_type == "standard":
+            self.setObjectName("scaleRowStandard")
+            self.setStyleSheet(f"""
+                QFrame#scaleRowStandard {{
+                    background-color: {default_theme.row_bg_standard};
+                    border-radius: 8px;
+                    border: none;
+                }}
+            """)
+        elif row_type == "highlight":
+            self.setObjectName("scaleRowHighlight")
+            self.setStyleSheet(f"""
+                QFrame#scaleRowHighlight {{
+                    background-color: {default_theme.row_bg_highlight};
+                    border: 1px solid {default_theme.border_highlight};
+                    border-radius: 8px;
+                }}
+            """)
+        elif row_type == "comparison":
+            self.setObjectName("scaleRowComparison")
+            self.setStyleSheet(f"""
+                QFrame#scaleRowComparison {{
+                    background-color: #FFF7ED;
+                    border-left: 4px solid #FB923C;
+                    border-top: none;
+                    border-right: none;
+                    border-bottom: none;
+                    border-radius: 8px;
+                }}
+            """)
+        else:
+            self.setObjectName("scaleRowStandard")
+            self.setStyleSheet(f"""
+                QFrame#scaleRowStandard {{
+                    background-color: {default_theme.row_bg_standard};
+                    border-radius: 8px;
+                    border: none;
+                }}
+            """)
+        
+        row_layout = QHBoxLayout(self)
+        row_layout.setContentsMargins(14, 8, 14, 8)
+        row_layout.setSpacing(0)
+        
+        # Label
+        label = QLabel(label_text)
+        label.setObjectName("scaleLabel")
+        label.setStyleSheet(f"background-color: transparent; color: {default_theme.text_secondary};")
+        label_font = QFont()
+        label_font.setPointSize(11)
+        label.setFont(label_font)
+        
+        # Spacer
+        spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        
+        # Value
+        self.value_label = QLabel(value_text)
+        self.value_label.setObjectName("scaleValue")
+        self.value_label.setStyleSheet(f"background-color: transparent; color: {default_theme.text_primary};")
+        value_font = QFont()
+        value_font.setPointSize(13)
+        value_font.setBold(True)
+        self.value_label.setFont(value_font)
+        self.value_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        
+        row_layout.addWidget(label)
+        row_layout.addItem(spacer)
+        row_layout.addWidget(self.value_label)
+        
+        # Install event filter for hover effect
+        self.installEventFilter(self)
+    
+    def eventFilter(self, obj, event):
+        """Handle hover events."""
+        if obj == self:
+            obj_name = self.objectName()
+            if obj_name == "scaleRowStandard":
+                if event.type() == QEvent.Enter:
+                    self.setStyleSheet(f"""
+                        QFrame#scaleRowStandard {{
+                            background-color: {default_theme.row_bg_hover};
+                            border-radius: 8px;
+                        }}
+                    """)
+                elif event.type() == QEvent.Leave:
+                    self.setStyleSheet(f"""
+                        QFrame#scaleRowStandard {{
+                            background-color: {default_theme.row_bg_standard};
+                            border-radius: 8px;
+                        }}
+                    """)
+            elif obj_name == "scaleRowHighlight":
+                if event.type() == QEvent.Enter:
+                    self.setStyleSheet(f"""
+                        QFrame#scaleRowHighlight {{
+                            background-color: {default_theme.row_bg_highlight_hover};
+                            border: 1px solid {default_theme.border_highlight};
+                            border-radius: 8px;
+                        }}
+                    """)
+                elif event.type() == QEvent.Leave:
+                    self.setStyleSheet(f"""
+                        QFrame#scaleRowHighlight {{
+                            background-color: {default_theme.row_bg_highlight};
+                            border: 1px solid {default_theme.border_highlight};
+                            border-radius: 8px;
+                        }}
+                    """)
+            elif obj_name == "scaleRowComparison":
+                if event.type() == QEvent.Enter:
+                    self.setStyleSheet(f"""
+                        QFrame#scaleRowComparison {{
+                            background-color: #FFEDD5;
+                            border-left: 4px solid #FB923C;
+                            border-top: none;
+                            border-right: none;
+                            border-bottom: none;
+                            border-radius: 8px;
+                        }}
+                    """)
+                elif event.type() == QEvent.Leave:
+                    self.setStyleSheet(f"""
+                        QFrame#scaleRowComparison {{
+                            background-color: #FFF7ED;
+                            border-left: 4px solid #FB923C;
+                            border-top: none;
+                            border-right: none;
+                            border-bottom: none;
+                            border-radius: 8px;
+                        }}
+                    """)
+        return super().eventFilter(obj, event)
+    
+    def set_value(self, text):
+        """Update the value label text."""
+        self.value_label.setText(text)
