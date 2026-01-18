@@ -24,21 +24,21 @@ class ToolbarButton(QPushButton):
         
         # Create layout for icon + text
         self._layout = QHBoxLayout(self)
-        self._layout.setContentsMargins(10, 6, 12, 6)
-        self._layout.setSpacing(6)
+        self._layout.setContentsMargins(6, 4, 8, 4)
+        self._layout.setSpacing(4)
         
         # Icon
         self.icon_label = QLabel(icon_text)
-        self.icon_label.setStyleSheet(f"color: {default_theme.icon_blue}; font-size: 14px; background: transparent;")
+        self.icon_label.setStyleSheet(f"color: {default_theme.icon_blue}; font-size: 12px; background: transparent;")
         self.icon_label.setAlignment(Qt.AlignCenter)
-        self.icon_label.setFixedWidth(18)
+        self.icon_label.setFixedWidth(14)
         self._layout.addWidget(self.icon_label)
         
         # Text label
         self.text_label = QLabel(label_text)
-        self.text_label.setStyleSheet(f"color: {default_theme.text_primary}; font-size: 11px; background: transparent;")
+        self.text_label.setStyleSheet(f"color: {default_theme.text_primary}; font-size: 10px; background: transparent;")
         label_font = QFont()
-        label_font.setPointSize(11)
+        label_font.setPointSize(10)
         self.text_label.setFont(label_font)
         self.text_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
         self._layout.addWidget(self.text_label)
@@ -46,8 +46,9 @@ class ToolbarButton(QPushButton):
         # Configure button
         self.setToolTip(tooltip or "")
         self.setCursor(Qt.PointingHandCursor)
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
-        self.setMinimumHeight(34)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.setMinimumHeight(28)
+        self.setMaximumHeight(28)
         
         self._apply_default_style()
         self._update_min_width()
@@ -62,7 +63,7 @@ class ToolbarButton(QPushButton):
         left = m.left()
         right = m.right()
 
-        icon_w = 18  # Fixed icon width
+        icon_w = 14  # Fixed icon width
         text = (self.text_label.text() or "").strip()
 
         if text:
@@ -74,10 +75,10 @@ class ToolbarButton(QPushButton):
             label_w = 0
             spacing = 0
 
-        # Extra padding to avoid pixel-level clipping
-        min_width = left + right + icon_w + spacing + label_w + 20
-        self.setMinimumWidth(min_width)
-        self.text_label.setMinimumWidth(label_w + 4)
+        # Minimal padding
+        min_width = left + right + icon_w + spacing + label_w + 6
+        self.setFixedWidth(min_width)
+        self.text_label.setMinimumWidth(label_w)
     
     def _apply_default_style(self):
         """Apply the default button style."""
@@ -222,8 +223,8 @@ class ViewControlsToolbar(QWidget):
         self.toolbar_content = QWidget()
         self.toolbar_content.setObjectName("toolbarContent")
         content_layout = QHBoxLayout(self.toolbar_content)
-        content_layout.setContentsMargins(12, 8, 12, 8)
-        content_layout.setSpacing(6)
+        content_layout.setContentsMargins(10, 6, 10, 6)
+        content_layout.setSpacing(8)
         
         # === Display & Mode Controls ===
         self.grid_btn = ToolbarButton("⊞", "Grid", "")
