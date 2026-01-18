@@ -199,16 +199,16 @@ class ViewControlsToolbar(QWidget):
         content_layout.setSpacing(6)
         
         # === Display & Mode Controls ===
-        self.grid_btn = ToolbarButton("⊞", "Grid", "Toggle background grid on/off")
+        self.grid_btn = ToolbarButton("⊞", "Grid", "")
         self.grid_btn.set_active(True)
         self.grid_btn.clicked.connect(self._on_grid_clicked)
         content_layout.addWidget(self.grid_btn)
         
-        self.theme_btn = ToolbarButton("☀", "Light", "Switch between light and dark theme")
+        self.theme_btn = ToolbarButton("☀", "Light", "")
         self.theme_btn.clicked.connect(self._on_theme_clicked)
         content_layout.addWidget(self.theme_btn)
         
-        self.wireframe_btn = ToolbarButton("◇", "Solid", "Toggle between solid and wireframe view")
+        self.wireframe_btn = ToolbarButton("◇", "Solid", "")
         self.wireframe_btn.clicked.connect(self._on_wireframe_clicked)
         content_layout.addWidget(self.wireframe_btn)
         
@@ -216,22 +216,22 @@ class ViewControlsToolbar(QWidget):
         content_layout.addSpacerItem(QSpacerItem(16, 0, QSizePolicy.Fixed, QSizePolicy.Minimum))
         
         # === View Orientation Controls ===
-        self.reset_btn = ToolbarButton("↺", "Reset", "Reset view to default rotation")
+        self.reset_btn = ToolbarButton("↺", "Reset", "")
         self.reset_btn.clicked.connect(self._on_reset_clicked)
         self.reset_btn.setEnabled(False)
         content_layout.addWidget(self.reset_btn)
         
-        self.front_btn = ToolbarButton("⬚", "Front", "View model from front")
+        self.front_btn = ToolbarButton("⬚", "Front", "")
         self.front_btn.clicked.connect(self._on_front_clicked)
         self.front_btn.setEnabled(False)
         content_layout.addWidget(self.front_btn)
         
-        self.side_btn = ToolbarButton("⊏", "Side", "View model from right side")
+        self.side_btn = ToolbarButton("⊏", "Side", "")
         self.side_btn.clicked.connect(self._on_side_clicked)
         self.side_btn.setEnabled(False)
         content_layout.addWidget(self.side_btn)
         
-        self.top_btn = ToolbarButton("⊤", "Top", "View model from top")
+        self.top_btn = ToolbarButton("⊤", "Top", "")
         self.top_btn.clicked.connect(self._on_top_clicked)
         self.top_btn.setEnabled(False)
         content_layout.addWidget(self.top_btn)
@@ -240,19 +240,24 @@ class ViewControlsToolbar(QWidget):
         content_layout.addSpacerItem(QSpacerItem(16, 0, QSizePolicy.Fixed, QSizePolicy.Minimum))
         
         # === Utility Actions ===
-        self.fullscreen_btn = ToolbarButton("⛶", "Fullscreen", "Toggle fullscreen mode")
+        self.fullscreen_btn = ToolbarButton("⛶", "Fullscreen", "")
         self.fullscreen_btn.clicked.connect(self._on_fullscreen_clicked)
         content_layout.addWidget(self.fullscreen_btn)
         
-        self.load_btn = ToolbarButton("📂", "Load", "Load or replace STL file")
+        # Load button - icon only with tooltip for filename
+        self.load_btn = ToolbarButton("📂", "", "Load or replace STL file")
         self.load_btn.clicked.connect(self._on_load_clicked)
+        self.load_btn.setFixedWidth(44)
         content_layout.addWidget(self.load_btn)
+        
+        # Apply tooltip styling for black text
+        self._apply_tooltip_style()
         
         # Flexible spacer
         content_layout.addStretch()
         
         # Collapse button (at the end)
-        self.collapse_btn = ToolbarButton("▲", "", "Hide Controls")
+        self.collapse_btn = ToolbarButton("▲", "", "")
         self.collapse_btn.clicked.connect(self._toggle_expanded)
         self.collapse_btn.setFixedWidth(36)
         content_layout.addWidget(self.collapse_btn)
@@ -269,7 +274,7 @@ class ViewControlsToolbar(QWidget):
         
         strip_layout.addStretch()
         
-        self.expand_btn = ToolbarButton("▼", "", "Show Controls")
+        self.expand_btn = ToolbarButton("▼", "", "")
         self.expand_btn.clicked.connect(self._toggle_expanded)
         self.expand_btn.setFixedWidth(36)
         self.expand_btn.setFixedHeight(22)
@@ -292,11 +297,9 @@ class ViewControlsToolbar(QWidget):
         if self.is_expanded:
             self.toolbar_content.setVisible(True)
             self.collapsed_strip.setVisible(False)
-            self.collapse_btn.setToolTip("Hide Controls")
         else:
             self.toolbar_content.setVisible(False)
             self.collapsed_strip.setVisible(True)
-            self.expand_btn.setToolTip("Show Controls")
     
     def set_stl_loaded(self, loaded):
         """Enable/disable view controls based on STL loaded state."""
@@ -375,14 +378,22 @@ class ViewControlsToolbar(QWidget):
         self.fullscreen_btn.set_active(False)
     
     def set_loaded_filename(self, filename):
-        """Update the load button to show the loaded filename."""
+        """Update the load button tooltip to show the loaded filename."""
         if filename:
-            # Truncate long filenames to fit in button
-            max_length = 20
-            if len(filename) > max_length:
-                display_name = filename[:max_length-3] + "..."
-            else:
-                display_name = filename
-            self.load_btn.set_label(display_name)
+            self.load_btn.setToolTip(filename)
         else:
-            self.load_btn.set_label("Load")
+            self.load_btn.setToolTip("Load or replace STL file")
+    
+    def _apply_tooltip_style(self):
+        """Apply tooltip styling with black text."""
+        tooltip_style = """
+            QToolTip {
+                background-color: #ffffff;
+                color: #000000;
+                border: 1px solid #cccccc;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 11px;
+            }
+        """
+        self.load_btn.setStyleSheet(self.load_btn.styleSheet() + tooltip_style)
