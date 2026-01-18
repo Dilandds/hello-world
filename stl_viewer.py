@@ -275,6 +275,8 @@ class STLViewerWindow(QMainWindow):
                 # Update window title with filename
                 filename = Path(file_path).name
                 self.setWindowTitle(f"STL 3D Viewer - {filename}")
+                # Update toolbar load button to show filename
+                self.toolbar.set_loaded_filename(filename)
                 # Enable toolbar controls
                 self.toolbar.set_stl_loaded(True)
                 # Update dimensions display

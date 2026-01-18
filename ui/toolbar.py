@@ -242,7 +242,7 @@ class ViewControlsToolbar(QWidget):
         self.fullscreen_btn.clicked.connect(self._on_fullscreen_clicked)
         content_layout.addWidget(self.fullscreen_btn)
         
-        self.load_btn = ToolbarButton("📂", "Load File", "Load or replace STL file")
+        self.load_btn = ToolbarButton("📂", "Load", "Load or replace STL file")
         self.load_btn.clicked.connect(self._on_load_clicked)
         content_layout.addWidget(self.load_btn)
         
@@ -371,3 +371,16 @@ class ViewControlsToolbar(QWidget):
         self.is_fullscreen = False
         self.fullscreen_btn.set_label("Fullscreen")
         self.fullscreen_btn.set_active(False)
+    
+    def set_loaded_filename(self, filename):
+        """Update the load button to show the loaded filename."""
+        if filename:
+            # Truncate long filenames to fit in button
+            max_length = 20
+            if len(filename) > max_length:
+                display_name = filename[:max_length-3] + "..."
+            else:
+                display_name = filename
+            self.load_btn.set_label(display_name)
+        else:
+            self.load_btn.set_label("Load")
