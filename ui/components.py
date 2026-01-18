@@ -3,7 +3,7 @@ Reusable UI components for the STL Viewer application.
 """
 from PyQt5.QtWidgets import (
     QFrame, QLabel, QHBoxLayout, QVBoxLayout,
-    QSpacerItem, QSizePolicy
+    QSpacerItem, QSizePolicy, QCheckBox
 )
 from PyQt5.QtCore import Qt, QEvent
 from PyQt5.QtGui import QFont
@@ -496,3 +496,130 @@ class ScaleResultRow(QFrame):
     def set_value(self, text):
         """Update the value label text."""
         self.value_label.setText(text)
+
+
+class ReportCheckbox(QFrame):
+    """A styled checkbox row for PDF report section selection."""
+    
+    def __init__(self, label_text, checked=False, enabled=True, always_checked=False, parent=None):
+        super().__init__(parent)
+        self.always_checked = always_checked
+        self.setObjectName("reportCheckboxRow")
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setFixedHeight(40)
+        
+        self._enabled = enabled
+        self._update_style()
+        
+        row_layout = QHBoxLayout(self)
+        row_layout.setContentsMargins(12, 6, 12, 6)
+        row_layout.setSpacing(10)
+        
+        # Checkbox
+        self.checkbox = QCheckBox()
+        self.checkbox.setChecked(checked or always_checked)
+        self.checkbox.setEnabled(enabled and not always_checked)
+        self.checkbox.setObjectName("reportCheckbox")
+        self.checkbox.setStyleSheet(f"""
+            QCheckBox#reportCheckbox {{
+                spacing: 0px;
+            }}
+            QCheckBox#reportCheckbox::indicator {{
+                width: 18px;
+                height: 18px;
+                border-radius: 4px;
+                border: 2px solid {default_theme.input_border};
+                background-color: {default_theme.input_bg};
+            }}
+            QCheckBox#reportCheckbox::indicator:checked {{
+                background-color: {default_theme.button_primary};
+                border-color: {default_theme.button_primary};
+            }}
+            QCheckBox#reportCheckbox::indicator:disabled {{
+                background-color: {default_theme.button_default_bg};
+                border-color: {default_theme.border_light};
+            }}
+            QCheckBox#reportCheckbox::indicator:checked:disabled {{
+                background-color: {default_theme.text_secondary};
+                border-color: {default_theme.text_secondary};
+            }}
+        """)
+        
+        # Label
+        self.label = QLabel(label_text)
+        self.label.setObjectName("reportCheckboxLabel")
+        label_color = default_theme.text_secondary if not enabled else default_theme.text_primary
+        self.label.setStyleSheet(f"background-color: transparent; color: {label_color};")
+        label_font = QFont()
+        label_font.setPointSize(11)
+        self.label.setFont(label_font)
+        
+        # Status indicator for disabled items
+        self.status_label = QLabel()
+        self.status_label.setObjectName("reportCheckboxStatus")
+        self.status_label.setStyleSheet(f"background-color: transparent; color: {default_theme.text_subtext}; font-size: 10px;")
+        self.status_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        
+        row_layout.addWidget(self.checkbox)
+        row_layout.addWidget(self.label)
+        row_layout.addStretch()
+        row_layout.addWidget(self.status_label)
+        
+        # Install event filter for hover effect
+        self.installEventFilter(self)
+    
+    def _update_style(self):
+        """Update frame style based on enabled state."""
+        if self._enabled:
+            self.setStyleSheet(f"""
+                QFrame#reportCheckboxRow {{
+                    background-color: {default_theme.row_bg_standard};
+                    border-radius: 6px;
+                    border: none;
+                }}
+            """)
+        else:
+            self.setStyleSheet(f"""
+                QFrame#reportCheckboxRow {{
+                    background-color: {default_theme.button_default_bg};
+                    border-radius: 6px;
+                    border: none;
+                }}
+            """)
+    
+    def eventFilter(self, obj, event):
+        """Handle hover events."""
+        if obj == self and self._enabled:
+            if event.type() == QEvent.Enter:
+                self.setStyleSheet(f"""
+                    QFrame#reportCheckboxRow {{
+                        background-color: {default_theme.row_bg_hover};
+                        border-radius: 6px;
+                    }}
+                """)
+            elif event.type() == QEvent.Leave:
+                self._update_style()
+        return super().eventFilter(obj, event)
+    
+    def is_checked(self):
+        """Return whether the checkbox is checked."""
+        return self.checkbox.isChecked()
+    
+    def set_checked(self, checked):
+        """Set checkbox state."""
+        if not self.always_checked:
+            self.checkbox.setChecked(checked)
+    
+    def set_enabled(self, enabled):
+        """Enable or disable the checkbox."""
+        if self.always_checked:
+            return
+        self._enabled = enabled
+        self.checkbox.setEnabled(enabled)
+        label_color = default_theme.text_secondary if not enabled else default_theme.text_primary
+        self.label.setStyleSheet(f"background-color: transparent; color: {label_color};")
+        self._update_style()
+    
+    def set_status(self, text):
+        """Set status text for the checkbox row."""
+        self.status_label.setText(text)

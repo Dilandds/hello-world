@@ -314,6 +314,35 @@ def get_global_stylesheet(theme=None):
             background-color: {theme.button_default_bg};
             color: {theme.text_secondary};
         }}
+        QFrame#pdfReportCard {{
+            background-color: {theme.card_background};
+            border-radius: 12px;
+            border: none;
+        }}
+        QFrame#reportCheckboxRow {{
+            background-color: {theme.row_bg_standard};
+            border-radius: 6px;
+            border: none;
+        }}
+        QPushButton#exportPdfBtn {{
+            background-color: #6366F1;
+            color: {theme.text_white};
+            border: none;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: bold;
+        }}
+        QPushButton#exportPdfBtn:hover {{
+            background-color: #4F46E5;
+        }}
+        QPushButton#exportPdfBtn:pressed {{
+            background-color: #4338CA;
+        }}
+        QPushButton#exportPdfBtn:disabled {{
+            background-color: {theme.button_default_bg};
+            color: {theme.text_secondary};
+        }}
     """
 
 
