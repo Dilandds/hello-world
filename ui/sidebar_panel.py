@@ -589,6 +589,27 @@ class SidebarPanel(QWidget):
         self.export_pdf_btn.setObjectName("exportPdfBtn")
         self.export_pdf_btn.setMinimumHeight(44)
         self.export_pdf_btn.setEnabled(False)
+        self.export_pdf_btn.setStyleSheet(f"""
+            QPushButton#exportPdfBtn {{
+                background-color: {default_theme.button_primary};
+                color: {default_theme.text_white};
+                border: none;
+                border-radius: 8px;
+                padding: 10px 16px;
+                font-size: 13px;
+                font-weight: bold;
+            }}
+            QPushButton#exportPdfBtn:hover {{
+                background-color: {default_theme.button_primary_hover};
+            }}
+            QPushButton#exportPdfBtn:pressed {{
+                background-color: {default_theme.button_primary_pressed};
+            }}
+            QPushButton#exportPdfBtn:disabled {{
+                background-color: {default_theme.button_default_bg};
+                color: {default_theme.text_primary};
+            }}
+        """)
         self.export_pdf_btn.clicked.connect(self.export_pdf_report)
         card_layout.addWidget(self.export_pdf_btn)
         

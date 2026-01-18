@@ -3,10 +3,10 @@ Reusable UI components for the STL Viewer application.
 """
 from PyQt5.QtWidgets import (
     QFrame, QLabel, QHBoxLayout, QVBoxLayout,
-    QSpacerItem, QSizePolicy, QCheckBox
+    QSpacerItem, QSizePolicy, QCheckBox, QWidget
 )
 from PyQt5.QtCore import Qt, QEvent
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QPainter, QColor
 from ui.styles import default_theme
 
 
@@ -541,35 +541,73 @@ class ReportCheckbox(QFrame):
         row_layout.setContentsMargins(12, 6, 12, 6)
         row_layout.setSpacing(10)
         
-        # Checkbox
+        # Custom checkbox indicator with checkmark
+        class CheckboxIndicator(QWidget):
+            def __init__(self, parent_checkbox, parent=None):
+                super().__init__(parent)
+                self.parent_checkbox = parent_checkbox
+                self.setFixedSize(14, 14)
+                self._checked = False
+                self._disabled = False
+            
+            def set_checked(self, checked):
+                self._checked = checked
+                self.update()
+            
+            def set_disabled_state(self, disabled):
+                self._disabled = disabled
+                self.update()
+            
+            def mousePressEvent(self, event):
+                if not self._disabled and event.button() == Qt.LeftButton:
+                    self.parent_checkbox.toggle()
+            
+            def paintEvent(self, event):
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.Antialiasing)
+                
+                rect = self.rect()
+                
+                # Draw border and background
+                if self._disabled:
+                    bg_color = QColor(default_theme.button_default_bg)
+                    border_color = QColor(default_theme.border_light)
+                elif self._checked:
+                    bg_color = QColor(default_theme.button_primary)
+                    border_color = QColor(default_theme.button_primary)
+                else:
+                    bg_color = QColor(default_theme.input_bg)
+                    border_color = QColor(default_theme.input_border)
+                
+                # Draw rounded rectangle
+                painter.setBrush(bg_color)
+                painter.setPen(border_color)
+                painter.drawRoundedRect(rect.adjusted(0, 0, -1, -1), 3, 3)
+                
+                # Draw checkmark if checked
+                if self._checked:
+                    from PyQt5.QtGui import QPen
+                    pen = QPen(QColor('white'), 1.5)
+                    pen.setCapStyle(Qt.RoundCap)
+                    pen.setJoinStyle(Qt.RoundJoin)
+                    painter.setPen(pen)
+                    # Draw checkmark lines (smaller checkmark)
+                    painter.drawLine(3, 7, 6, 10)
+                    painter.drawLine(6, 10, 11, 4)
+        
+        # Use invisible QCheckBox for state management
         self.checkbox = QCheckBox()
         self.checkbox.setChecked(checked or always_checked)
         self.checkbox.setEnabled(enabled and not always_checked)
-        self.checkbox.setObjectName("reportCheckbox")
-        self.checkbox.setStyleSheet(f"""
-            QCheckBox#reportCheckbox {{
-                spacing: 0px;
-            }}
-            QCheckBox#reportCheckbox::indicator {{
-                width: 18px;
-                height: 18px;
-                border-radius: 4px;
-                border: 2px solid {default_theme.input_border};
-                background-color: {default_theme.input_bg};
-            }}
-            QCheckBox#reportCheckbox::indicator:checked {{
-                background-color: {default_theme.button_primary};
-                border-color: {default_theme.button_primary};
-            }}
-            QCheckBox#reportCheckbox::indicator:disabled {{
-                background-color: {default_theme.button_default_bg};
-                border-color: {default_theme.border_light};
-            }}
-            QCheckBox#reportCheckbox::indicator:checked:disabled {{
-                background-color: {default_theme.text_secondary};
-                border-color: {default_theme.text_secondary};
-            }}
-        """)
+        self.checkbox.setVisible(False)  # Hide the actual checkbox
+        
+        # Create custom checkbox indicator
+        self.checkbox_indicator = CheckboxIndicator(self.checkbox, self)
+        self.checkbox_indicator.set_checked(checked or always_checked)
+        self.checkbox_indicator.set_disabled_state(not enabled or always_checked)
+        
+        # Connect checkbox state changes to update indicator
+        self.checkbox.stateChanged.connect(lambda state: self.checkbox_indicator.set_checked(state == Qt.Checked))
         
         # Label
         self.label = QLabel(label_text)
@@ -586,7 +624,7 @@ class ReportCheckbox(QFrame):
         self.status_label.setStyleSheet(f"background-color: transparent; color: {default_theme.text_subtext}; font-size: 10px;")
         self.status_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         
-        row_layout.addWidget(self.checkbox)
+        row_layout.addWidget(self.checkbox_indicator)
         row_layout.addWidget(self.label)
         row_layout.addStretch()
         row_layout.addWidget(self.status_label)
@@ -635,6 +673,7 @@ class ReportCheckbox(QFrame):
         """Set checkbox state."""
         if not self.always_checked:
             self.checkbox.setChecked(checked)
+            self.checkbox_indicator.set_checked(checked)
     
     def set_enabled(self, enabled):
         """Enable or disable the checkbox."""
@@ -642,6 +681,7 @@ class ReportCheckbox(QFrame):
             return
         self._enabled = enabled
         self.checkbox.setEnabled(enabled)
+        self.checkbox_indicator.set_disabled_state(not enabled)
         label_color = default_theme.text_secondary if not enabled else default_theme.text_primary
         self.label.setStyleSheet(f"background-color: transparent; color: {label_color};")
         self._update_style()
