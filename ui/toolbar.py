@@ -40,6 +40,7 @@ class ToolbarButton(QPushButton):
         label_font = QFont()
         label_font.setPointSize(11)
         self.text_label.setFont(label_font)
+        self.text_label.setMinimumWidth(self.text_label.fontMetrics().horizontalAdvance(label_text) + 4)
         layout.addWidget(self.text_label)
         
         # Configure button
@@ -110,6 +111,7 @@ class ToolbarButton(QPushButton):
         """Update the button label text."""
         self.label_text = text
         self.text_label.setText(text)
+        self.text_label.setMinimumWidth(self.text_label.fontMetrics().horizontalAdvance(text) + 4)
     
     def set_icon(self, icon_text):
         """Update the button icon."""
