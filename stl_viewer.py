@@ -168,7 +168,7 @@ class STLViewerWindow(QMainWindow):
                     mesh = self.viewer_widget.current_mesh
                     if mesh is not None:
                         mesh_data = MeshCalculator.get_mesh_data(mesh)
-                        self.sidebar_panel.update_dimensions(mesh_data)
+                        self.sidebar_panel.update_dimensions(mesh_data, file_path)
         else:
             logger.info("upload_stl_file: File selection cancelled")
     
