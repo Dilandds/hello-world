@@ -414,6 +414,27 @@ class SidebarPanel(QWidget):
         self.calculate_scale_btn.setObjectName("calculateScaleBtn")
         self.calculate_scale_btn.setMinimumHeight(40)
         self.calculate_scale_btn.setEnabled(False)
+        self.calculate_scale_btn.setStyleSheet(f"""
+            QPushButton#calculateScaleBtn {{
+                background-color: {default_theme.button_primary};
+                color: {default_theme.text_white};
+                border: none;
+                border-radius: 8px;
+                padding: 10px 16px;
+                font-size: 13px;
+                font-weight: bold;
+            }}
+            QPushButton#calculateScaleBtn:hover {{
+                background-color: {default_theme.button_primary_hover};
+            }}
+            QPushButton#calculateScaleBtn:pressed {{
+                background-color: {default_theme.button_primary_pressed};
+            }}
+            QPushButton#calculateScaleBtn:disabled {{
+                background-color: {default_theme.button_default_bg};
+                color: {default_theme.text_primary};
+            }}
+        """)
         self.calculate_scale_btn.clicked.connect(self.calculate_scale)
         card_layout.addWidget(self.calculate_scale_btn)
         
@@ -442,8 +463,8 @@ class SidebarPanel(QWidget):
         card_layout.addWidget(self.new_y_row)
         card_layout.addWidget(self.new_z_row)
         
-        # New volume row
-        self.new_volume_row = ScaleResultRow("New Volume", "--", "standard", self)
+        # New volume row (with subtle border to differentiate from dimensions)
+        self.new_volume_row = ScaleResultRow("New Volume", "--", "volume", self)
         card_layout.addWidget(self.new_volume_row)
         
         # Weight comparison separator
@@ -467,6 +488,27 @@ class SidebarPanel(QWidget):
         self.export_scaled_btn.setObjectName("exportScaledBtn")
         self.export_scaled_btn.setMinimumHeight(44)
         self.export_scaled_btn.setEnabled(False)
+        self.export_scaled_btn.setStyleSheet(f"""
+            QPushButton#exportScaledBtn {{
+                background-color: #10B981;
+                color: {default_theme.text_white};
+                border: none;
+                border-radius: 8px;
+                padding: 10px 16px;
+                font-size: 13px;
+                font-weight: bold;
+            }}
+            QPushButton#exportScaledBtn:hover {{
+                background-color: #059669;
+            }}
+            QPushButton#exportScaledBtn:pressed {{
+                background-color: #047857;
+            }}
+            QPushButton#exportScaledBtn:disabled {{
+                background-color: {default_theme.button_default_bg};
+                color: {default_theme.text_primary};
+            }}
+        """)
         self.export_scaled_btn.clicked.connect(self.export_scaled_stl_file)
         card_layout.addWidget(self.export_scaled_btn)
         

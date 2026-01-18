@@ -390,6 +390,15 @@ class ScaleResultRow(QFrame):
                     border-radius: 8px;
                 }}
             """)
+        elif row_type == "volume":
+            self.setObjectName("scaleRowVolume")
+            self.setStyleSheet(f"""
+                QFrame#scaleRowVolume {{
+                    background-color: {default_theme.row_bg_standard};
+                    border: 1px solid {default_theme.border_light};
+                    border-radius: 8px;
+                }}
+            """)
         else:
             self.setObjectName("scaleRowStandard")
             self.setStyleSheet(f"""
@@ -448,6 +457,23 @@ class ScaleResultRow(QFrame):
                     self.setStyleSheet(f"""
                         QFrame#scaleRowStandard {{
                             background-color: {default_theme.row_bg_standard};
+                            border-radius: 8px;
+                        }}
+                    """)
+            elif obj_name == "scaleRowVolume":
+                if event.type() == QEvent.Enter:
+                    self.setStyleSheet(f"""
+                        QFrame#scaleRowVolume {{
+                            background-color: {default_theme.row_bg_hover};
+                            border: 1px solid {default_theme.border_medium};
+                            border-radius: 8px;
+                        }}
+                    """)
+                elif event.type() == QEvent.Leave:
+                    self.setStyleSheet(f"""
+                        QFrame#scaleRowVolume {{
+                            background-color: {default_theme.row_bg_standard};
+                            border: 1px solid {default_theme.border_light};
                             border-radius: 8px;
                         }}
                     """)
