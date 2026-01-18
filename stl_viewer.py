@@ -76,6 +76,7 @@ class STLViewerWindow(QMainWindow):
         logger.info("init_ui: Creating sidebar panel...")
         self.sidebar_panel = SidebarPanel()
         self.sidebar_panel.upload_btn.clicked.connect(self.upload_stl_file)
+        self.sidebar_panel.export_scaled_stl.connect(self.export_scaled_stl)
         splitter.addWidget(self.sidebar_panel)
         logger.info("init_ui: Sidebar panel created")
         
@@ -170,6 +171,56 @@ class STLViewerWindow(QMainWindow):
                         self.sidebar_panel.update_dimensions(mesh_data)
         else:
             logger.info("upload_stl_file: File selection cancelled")
+    
+    def export_scaled_stl(self, file_path, scale_factor):
+        """Export the current mesh scaled by the given factor."""
+        logger.info(f"export_scaled_stl: Exporting scaled STL to {file_path} with scale {scale_factor}")
+        
+        if not hasattr(self.viewer_widget, 'current_mesh') or self.viewer_widget.current_mesh is None:
+            logger.error("export_scaled_stl: No mesh loaded")
+            QMessageBox.warning(
+                self,
+                "No Mesh Loaded",
+                "Please load an STL file first before exporting."
+            )
+            return
+        
+        try:
+            # Scale and export the mesh
+            scaled_mesh = MeshCalculator.scale_mesh(self.viewer_widget.current_mesh, scale_factor)
+            
+            if scaled_mesh is None:
+                logger.error("export_scaled_stl: Failed to scale mesh")
+                QMessageBox.critical(
+                    self,
+                    "Export Error",
+                    "Failed to scale the mesh. Please try again."
+                )
+                return
+            
+            success = MeshCalculator.export_stl(scaled_mesh, file_path)
+            
+            if success:
+                logger.info(f"export_scaled_stl: Successfully exported to {file_path}")
+                QMessageBox.information(
+                    self,
+                    "Export Successful",
+                    f"Scaled STL file exported successfully to:\n{file_path}"
+                )
+            else:
+                logger.error(f"export_scaled_stl: Failed to export to {file_path}")
+                QMessageBox.critical(
+                    self,
+                    "Export Error",
+                    f"Failed to export STL file to:\n{file_path}"
+                )
+        except Exception as e:
+            logger.error(f"export_scaled_stl: Error during export: {e}", exc_info=True)
+            QMessageBox.critical(
+                self,
+                "Export Error",
+                f"Error during export:\n{str(e)}"
+            )
 
 
 def main():

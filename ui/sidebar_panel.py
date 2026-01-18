@@ -4,11 +4,12 @@ Sidebar panel widget for the STL Viewer application.
 import logging
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QScrollArea, QFrame, QComboBox, QSizePolicy, QGraphicsDropShadowEffect
+    QScrollArea, QFrame, QComboBox, QSizePolicy, QGraphicsDropShadowEffect,
+    QLineEdit, QFileDialog
 )
-from PyQt5.QtCore import Qt, QEvent
-from PyQt5.QtGui import QFont, QColor
-from ui.components import DimensionRow, SurfaceAreaRow, WeightRow, Separator
+from PyQt5.QtCore import Qt, QEvent, pyqtSignal
+from PyQt5.QtGui import QFont, QColor, QDoubleValidator
+from ui.components import DimensionRow, SurfaceAreaRow, WeightRow, Separator, ScaleResultRow
 from ui.styles import get_button_style, default_theme
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,9 @@ logger = logging.getLogger(__name__)
 
 class SidebarPanel(QWidget):
     """Left sidebar panel with upload controls and information sections."""
+    
+    # Signal emitted when export is requested (file_path, scale_factor)
+    export_scaled_stl = pyqtSignal(str, float)
     
     # Material density data (g/cm³)
     MATERIALS = [
@@ -53,6 +57,9 @@ class SidebarPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.current_volume_mm3 = 0.0
+        self.current_weight_grams = 0.0
+        self.current_dimensions = {'width': 0.0, 'height': 0.0, 'depth': 0.0}
+        self.calculated_scale_factor = 1.0
         self.init_ui()
     
     def _add_card_shadow(self, card):
@@ -132,6 +139,10 @@ class SidebarPanel(QWidget):
         
         self.weight_group = self.create_weight_section()
         layout.addWidget(self.weight_group)
+        
+        # Create Adjust to Target Weight section
+        self.adjust_weight_group = self.create_adjust_weight_section()
+        layout.addWidget(self.adjust_weight_group)
         
         # Add stretch
         layout.addStretch()
@@ -335,6 +346,125 @@ class SidebarPanel(QWidget):
         
         return card
     
+    def create_adjust_weight_section(self):
+        """Create the adjust to target weight section."""
+        card = QFrame()
+        card.setObjectName("adjustWeightCard")
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 16, 16, 16)
+        card_layout.setSpacing(10)
+        
+        # Header row with title and icon
+        header_layout = QHBoxLayout()
+        header_layout.setSpacing(8)
+        
+        title_label = QLabel("Adjust to Target Weight")
+        title_font = QFont()
+        title_font.setPointSize(14)
+        title_font.setBold(True)
+        title_label.setFont(title_font)
+        title_label.setStyleSheet(f"color: {default_theme.text_title}; margin-bottom: 4px;")
+        
+        icon_label = QLabel("⚙")
+        icon_label.setStyleSheet(f"color: {default_theme.icon_blue}; font-size: 16px;")
+        icon_label.setAlignment(Qt.AlignCenter)
+        
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
+        header_layout.addWidget(icon_label)
+        card_layout.addLayout(header_layout)
+        
+        # Target weight input
+        input_layout = QHBoxLayout()
+        input_layout.setSpacing(8)
+        
+        self.target_weight_input = QLineEdit()
+        self.target_weight_input.setObjectName("targetWeightInput")
+        self.target_weight_input.setPlaceholderText("Enter target weight")
+        self.target_weight_input.setMinimumHeight(40)
+        
+        # Set validator for numeric input
+        validator = QDoubleValidator(0.0, 999999.0, 4)
+        validator.setNotation(QDoubleValidator.StandardNotation)
+        self.target_weight_input.setValidator(validator)
+        self.target_weight_input.returnPressed.connect(self.calculate_scale)
+        
+        unit_label = QLabel("g")
+        unit_label.setStyleSheet(f"color: {default_theme.text_secondary}; font-weight: bold;")
+        unit_label.setFixedWidth(20)
+        
+        input_layout.addWidget(self.target_weight_input)
+        input_layout.addWidget(unit_label)
+        card_layout.addLayout(input_layout)
+        
+        # Calculate button
+        self.calculate_scale_btn = QPushButton("Calculate Scale")
+        self.calculate_scale_btn.setObjectName("calculateScaleBtn")
+        self.calculate_scale_btn.setMinimumHeight(40)
+        self.calculate_scale_btn.setEnabled(False)
+        self.calculate_scale_btn.clicked.connect(self.calculate_scale)
+        card_layout.addWidget(self.calculate_scale_btn)
+        
+        # Separator
+        separator = Separator(self)
+        card_layout.addWidget(separator)
+        
+        # Results section title
+        results_label = QLabel("Scaled Results")
+        results_font = QFont()
+        results_font.setPointSize(11)
+        results_font.setBold(True)
+        results_label.setFont(results_font)
+        results_label.setStyleSheet(f"color: {default_theme.text_secondary}; margin-top: 4px;")
+        card_layout.addWidget(results_label)
+        
+        # Scale factor row
+        self.scale_factor_row = ScaleResultRow("Scale factor", "--", "highlight", self)
+        card_layout.addWidget(self.scale_factor_row)
+        
+        # New dimensions rows
+        self.new_x_row = ScaleResultRow("New X (Length)", "--", "standard", self)
+        self.new_y_row = ScaleResultRow("New Y (Width)", "--", "standard", self)
+        self.new_z_row = ScaleResultRow("New Z (Height)", "--", "standard", self)
+        card_layout.addWidget(self.new_x_row)
+        card_layout.addWidget(self.new_y_row)
+        card_layout.addWidget(self.new_z_row)
+        
+        # New volume row
+        self.new_volume_row = ScaleResultRow("New Volume", "--", "standard", self)
+        card_layout.addWidget(self.new_volume_row)
+        
+        # Weight comparison separator
+        separator2 = Separator(self)
+        card_layout.addWidget(separator2)
+        
+        # Weight comparison title
+        comparison_label = QLabel("Weight Comparison")
+        comparison_label.setFont(results_font)
+        comparison_label.setStyleSheet(f"color: {default_theme.text_secondary}; margin-top: 4px;")
+        card_layout.addWidget(comparison_label)
+        
+        # Weight comparison rows
+        self.original_weight_row = ScaleResultRow("Original weight", "--", "comparison", self)
+        self.target_weight_row = ScaleResultRow("Target weight", "--", "highlight", self)
+        card_layout.addWidget(self.original_weight_row)
+        card_layout.addWidget(self.target_weight_row)
+        
+        # Export button
+        self.export_scaled_btn = QPushButton("Export Scaled STL")
+        self.export_scaled_btn.setObjectName("exportScaledBtn")
+        self.export_scaled_btn.setMinimumHeight(44)
+        self.export_scaled_btn.setEnabled(False)
+        self.export_scaled_btn.clicked.connect(self.export_scaled_stl_file)
+        card_layout.addWidget(self.export_scaled_btn)
+        
+        # Add shadow effect
+        self._add_card_shadow(card)
+        
+        return card
+    
     def eventFilter(self, obj, event):
         """Handle hover events for rows."""
         # Rows handle their own events, but we need to ensure they're installed
@@ -365,6 +495,113 @@ class SidebarPanel(QWidget):
         
         result = MeshCalculator.estimate_weight(volume_mm3, density_g_per_cm3)
         self.weight_result_row.set_value(result['display'])
+        
+        # Store current weight for scaling calculations
+        self.current_weight_grams = result['grams']
+        
+        # Enable/disable calculate button based on whether we have valid data
+        has_valid_weight = self.current_weight_grams > 0
+        self.calculate_scale_btn.setEnabled(has_valid_weight)
+        
+        # Reset scale results if weight changed
+        self.reset_scale_results()
+    
+    def calculate_scale(self):
+        """Calculate the scale factor for target weight."""
+        from core.mesh_calculator import MeshCalculator
+        
+        # Get target weight from input
+        target_text = self.target_weight_input.text().strip()
+        if not target_text:
+            return
+        
+        try:
+            target_weight = float(target_text)
+        except ValueError:
+            return
+        
+        if target_weight <= 0 or self.current_weight_grams <= 0:
+            return
+        
+        # Calculate scale factor
+        scale_result = MeshCalculator.calculate_scale_for_target_weight(
+            self.current_weight_grams, target_weight
+        )
+        
+        if not scale_result['valid']:
+            return
+        
+        scale_factor = scale_result['scale_factor']
+        self.calculated_scale_factor = scale_factor
+        
+        # Update scale factor display
+        self.scale_factor_row.set_value(f"{scale_factor:.6f}")
+        
+        # Calculate new dimensions
+        new_dims = MeshCalculator.apply_scale_to_dimensions(
+            self.current_dimensions['width'],
+            self.current_dimensions['height'],
+            self.current_dimensions['depth'],
+            scale_factor
+        )
+        
+        self.new_x_row.set_value(f"{new_dims['width']:.2f} mm")
+        self.new_y_row.set_value(f"{new_dims['height']:.2f} mm")
+        self.new_z_row.set_value(f"{new_dims['depth']:.2f} mm")
+        
+        # Calculate new volume
+        new_volume = MeshCalculator.apply_scale_to_volume(self.current_volume_mm3, scale_factor)
+        self.new_volume_row.set_value(f"{new_volume['volume_cm3']:.4f} cm³")
+        
+        # Update weight comparison
+        if self.current_weight_grams >= 1000:
+            original_display = f"{self.current_weight_grams / 1000:.3f} kg"
+        else:
+            original_display = f"{self.current_weight_grams:.2f} g"
+        
+        if target_weight >= 1000:
+            target_display = f"{target_weight / 1000:.3f} kg"
+        else:
+            target_display = f"{target_weight:.2f} g"
+        
+        self.original_weight_row.set_value(original_display)
+        self.target_weight_row.set_value(target_display)
+        
+        # Enable export button
+        self.export_scaled_btn.setEnabled(True)
+    
+    def reset_scale_results(self):
+        """Reset all scale result displays."""
+        self.scale_factor_row.set_value("--")
+        self.new_x_row.set_value("--")
+        self.new_y_row.set_value("--")
+        self.new_z_row.set_value("--")
+        self.new_volume_row.set_value("--")
+        self.original_weight_row.set_value("--")
+        self.target_weight_row.set_value("--")
+        self.export_scaled_btn.setEnabled(False)
+        self.calculated_scale_factor = 1.0
+    
+    def export_scaled_stl_file(self):
+        """Handle export of scaled STL file."""
+        if self.calculated_scale_factor == 1.0:
+            return
+        
+        # Open save dialog
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Scaled STL File",
+            "",
+            "STL Files (*.stl);;All Files (*)"
+        )
+        
+        if file_path:
+            # Ensure .stl extension
+            if not file_path.lower().endswith('.stl'):
+                file_path += '.stl'
+            
+            # Emit signal with file path and scale factor
+            self.export_scaled_stl.emit(file_path, self.calculated_scale_factor)
     
     def update_dimensions(self, mesh_data):
         """Update all dimension displays with mesh data."""
@@ -379,7 +616,10 @@ class SidebarPanel(QWidget):
             self.surface_cm_row.set_value("--")
             self.weight_volume_row.set_value("--")
             self.current_volume_mm3 = 0.0
+            self.current_dimensions = {'width': 0.0, 'height': 0.0, 'depth': 0.0}
             self.calculate_weight()
+            self.reset_scale_results()
+            self.calculate_scale_btn.setEnabled(False)
             return
         
         # Update dimensions
@@ -387,6 +627,13 @@ class SidebarPanel(QWidget):
         self.height_row.set_value(f"{mesh_data['height']:.2f} mm")
         self.depth_row.set_value(f"{mesh_data['depth']:.2f} mm")
         self.volume_row.set_value(f"{mesh_data['volume_mm3']:.2f} mm³")
+        
+        # Store current dimensions
+        self.current_dimensions = {
+            'width': mesh_data['width'],
+            'height': mesh_data['height'],
+            'depth': mesh_data['depth']
+        }
         
         # Update surface area
         self.surface_total_row.set_value(f"{mesh_data['surface_area_mm2']:.2f} mm²")

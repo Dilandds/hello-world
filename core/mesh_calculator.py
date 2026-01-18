@@ -477,6 +477,124 @@ class MeshCalculator:
         return results
     
     @staticmethod
+    def calculate_scale_for_target_weight(current_weight_grams, target_weight_grams):
+        """
+        Calculate the uniform scale factor needed to achieve a target weight.
+        
+        Weight scales with volume (length^3), so:
+        target_weight = current_weight * scale^3
+        scale = (target_weight / current_weight)^(1/3)
+        
+        Args:
+            current_weight_grams: Current weight in grams
+            target_weight_grams: Target weight in grams
+            
+        Returns:
+            dict: Dictionary with scale factor and validity
+        """
+        if current_weight_grams <= 0 or target_weight_grams <= 0:
+            return {
+                'scale_factor': 1.0,
+                'valid': False,
+                'error': 'Invalid weight values'
+            }
+        
+        scale_factor = (target_weight_grams / current_weight_grams) ** (1.0 / 3.0)
+        
+        return {
+            'scale_factor': scale_factor,
+            'valid': True,
+            'error': None
+        }
+    
+    @staticmethod
+    def apply_scale_to_dimensions(width, height, depth, scale_factor):
+        """
+        Calculate new dimensions after applying uniform scale.
+        
+        Args:
+            width: Original width (X) in mm
+            height: Original height (Y) in mm
+            depth: Original depth (Z) in mm
+            scale_factor: Uniform scale factor to apply
+            
+        Returns:
+            dict: Dictionary with new dimensions
+        """
+        return {
+            'width': width * scale_factor,
+            'height': height * scale_factor,
+            'depth': depth * scale_factor
+        }
+    
+    @staticmethod
+    def apply_scale_to_volume(volume_mm3, scale_factor):
+        """
+        Calculate new volume after applying uniform scale.
+        Volume scales with the cube of the linear scale factor.
+        
+        Args:
+            volume_mm3: Original volume in mm³
+            scale_factor: Uniform scale factor
+            
+        Returns:
+            dict: Dictionary with new volume values
+        """
+        new_volume_mm3 = volume_mm3 * (scale_factor ** 3)
+        new_volume_cm3 = new_volume_mm3 / 1000.0
+        
+        return {
+            'volume_mm3': new_volume_mm3,
+            'volume_cm3': new_volume_cm3
+        }
+    
+    @staticmethod
+    def scale_mesh(mesh, scale_factor):
+        """
+        Create a scaled copy of the mesh.
+        
+        Args:
+            mesh: PyVista mesh object
+            scale_factor: Uniform scale factor to apply
+            
+        Returns:
+            pv.PolyData: Scaled mesh, or None if operation fails
+        """
+        if mesh is None or scale_factor <= 0:
+            return None
+        
+        try:
+            # Create a copy and scale it
+            scaled_mesh = mesh.copy()
+            scaled_mesh.points *= scale_factor
+            return scaled_mesh
+        except Exception as e:
+            logger.warning(f"Failed to scale mesh: {e}")
+            return None
+    
+    @staticmethod
+    def export_stl(mesh, file_path):
+        """
+        Export mesh to STL file.
+        
+        Args:
+            mesh: PyVista mesh object
+            file_path: Path to save the STL file
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if mesh is None:
+            return False
+        
+        try:
+            mesh.save(file_path)
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to export STL: {e}")
+            return False
+    
+    @staticmethod
     def get_mesh_data(mesh):
         """
         Get all mesh data in a single call.
