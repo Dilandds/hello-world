@@ -156,8 +156,14 @@ class STLViewerWidgetOffscreen(QWidget):
             mesh = pv.read(file_path)
             logger.info(f"load_stl: STL file read successfully. Mesh info: {mesh}")
             
+            # Store the original mesh BEFORE adding to plotter
+            # This ensures volume calculations use the unmodified mesh
+            # (plotter.add_mesh may modify the mesh for rendering)
+            self.current_mesh = mesh.copy()
+            
             logger.info("load_stl: Adding mesh to plotter...")
             # Add mesh to plotter
+            # Use the original mesh for rendering (okay to modify for display)
             self.plotter.add_mesh(
                 mesh,
                 color='lightblue',
@@ -175,9 +181,6 @@ class STLViewerWidgetOffscreen(QWidget):
             logger.info("load_stl: Resetting camera...")
             # Fit view to show entire model
             self.plotter.reset_camera()
-            
-            # Update reference
-            self.current_mesh = mesh
             self.rotation_angle = 0
             
             # Render and display

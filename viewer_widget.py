@@ -272,9 +272,18 @@ class STLViewerWidget(QWidget):
             mesh = pv.read(file_path)
             logger.info(f"load_stl: STL file read successfully. Mesh info: {mesh}")
             
+            # Check if this is the first mesh load (before we update current_mesh)
+            is_first_load = (self.current_mesh is None)
+            
+            # Store the original mesh BEFORE adding to plotter
+            # This ensures volume calculations use the unmodified mesh
+            # (plotter.add_mesh may modify the mesh for rendering)
+            self.current_mesh = mesh.copy()
+            
             logger.info("load_stl: Adding mesh to plotter...")
             # Add mesh to plotter with consistent rendering parameters
             # Store the actor reference so we can remove it later
+            # Use the original mesh for rendering (okay to modify for display)
             self.current_actor = self.plotter.add_mesh(
                 mesh,
                 color='lightblue',
@@ -287,8 +296,8 @@ class STLViewerWidget(QWidget):
             )
             logger.info("load_stl: Mesh added to plotter")
             
-            # Ensure axes are present (only add if not already there)
-            if self.current_mesh is None:
+            # Ensure axes are present (only add on first load)
+            if is_first_load:
                 self.plotter.add_axes()
             
             logger.info("load_stl: Resetting camera...")
@@ -298,9 +307,6 @@ class STLViewerWidget(QWidget):
             # Force renderer update to ensure consistent appearance
             from PyQt5.QtWidgets import QApplication
             QApplication.processEvents()
-            
-            # Update references
-            self.current_mesh = mesh
             logger.info("load_stl: STL file loaded successfully")
             
             return True
