@@ -4,7 +4,7 @@ Top horizontal toolbar for 3D view controls.
 import logging
 from PyQt5.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QLabel,
-    QSizePolicy, QFrame, QSpacerItem
+    QSizePolicy, QFrame, QSpacerItem, QApplication
 )
 from PyQt5.QtCore import Qt, QEvent, pyqtSignal, QPropertyAnimation, QEasingCurve, QSettings
 from PyQt5.QtGui import QFont
@@ -23,16 +23,16 @@ class ToolbarButton(QPushButton):
         self._is_active = False
         
         # Create layout for icon + text
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 6, 12, 6)
-        layout.setSpacing(6)
+        self._layout = QHBoxLayout(self)
+        self._layout.setContentsMargins(10, 6, 12, 6)
+        self._layout.setSpacing(6)
         
         # Icon
         self.icon_label = QLabel(icon_text)
         self.icon_label.setStyleSheet(f"color: {default_theme.icon_blue}; font-size: 14px; background: transparent;")
         self.icon_label.setAlignment(Qt.AlignCenter)
         self.icon_label.setFixedWidth(18)
-        layout.addWidget(self.icon_label)
+        self._layout.addWidget(self.icon_label)
         
         # Text label
         self.text_label = QLabel(label_text)
@@ -40,17 +40,43 @@ class ToolbarButton(QPushButton):
         label_font = QFont()
         label_font.setPointSize(11)
         self.text_label.setFont(label_font)
-        self.text_label.setMinimumWidth(self.text_label.fontMetrics().horizontalAdvance(label_text) + 4)
-        layout.addWidget(self.text_label)
+        self.text_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        self._layout.addWidget(self.text_label)
         
         # Configure button
-        self.setToolTip(tooltip)
+        self.setToolTip(tooltip or "")
         self.setCursor(Qt.PointingHandCursor)
-        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         self.setMinimumHeight(34)
         
         self._apply_default_style()
+        self._update_min_width()
         self.installEventFilter(self)
+
+    def _update_min_width(self):
+        """Ensure the button is wide enough to show its full label."""
+        if not hasattr(self, "_layout"):
+            return
+
+        m = self._layout.contentsMargins()
+        left = m.left()
+        right = m.right()
+
+        icon_w = self.icon_label.sizeHint().width() if self.icon_label.isVisible() else 0
+        text = (self.text_label.text() or "").strip()
+
+        if text:
+            # sizeHint() is more reliable than raw font metrics under HiDPI
+            label_w = self.text_label.sizeHint().width()
+            spacing = self._layout.spacing()
+        else:
+            label_w = 0
+            spacing = 0
+
+        # Extra padding to avoid pixel-level clipping
+        self.setMinimumWidth(left + right + icon_w + spacing + label_w + 14)
+        self.adjustSize()
+        self.updateGeometry()
     
     def _apply_default_style(self):
         """Apply the default button style."""
@@ -111,7 +137,7 @@ class ToolbarButton(QPushButton):
         """Update the button label text."""
         self.label_text = text
         self.text_label.setText(text)
-        self.text_label.setMinimumWidth(self.text_label.fontMetrics().horizontalAdvance(text) + 4)
+        self._update_min_width()
     
     def set_icon(self, icon_text):
         """Update the button icon."""
@@ -386,6 +412,10 @@ class ViewControlsToolbar(QWidget):
     
     def _apply_tooltip_style(self):
         """Apply tooltip styling with black text."""
+        app = QApplication.instance()
+        if not app:
+            return
+
         tooltip_style = """
             QToolTip {
                 background-color: #ffffff;
@@ -396,4 +426,7 @@ class ViewControlsToolbar(QWidget):
                 font-size: 11px;
             }
         """
-        self.load_btn.setStyleSheet(self.load_btn.styleSheet() + tooltip_style)
+
+        existing = app.styleSheet() or ""
+        if "QToolTip" not in existing:
+            app.setStyleSheet(existing + "\n" + tooltip_style)
