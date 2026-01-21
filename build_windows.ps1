@@ -10,16 +10,16 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $ScriptDir
 
 # Check if PyInstaller is installed
-try {
-    $null = Get-Command pyinstaller -ErrorAction Stop
-    Write-Host "✓ PyInstaller found" -ForegroundColor Green
-} catch {
+$pyinstallerCmd = Get-Command pyinstaller -ErrorAction SilentlyContinue
+if (-not $pyinstallerCmd) {
     Write-Host "PyInstaller not found. Installing..." -ForegroundColor Yellow
     pip install pyinstaller>=6.0.0
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Error: Failed to install PyInstaller" -ForegroundColor Red
         exit 1
     }
+} else {
+    Write-Host "✓ PyInstaller found" -ForegroundColor Green
 }
 
 # Clean previous builds
