@@ -4,12 +4,15 @@ PyInstaller spec file for STL 3D Viewer Windows build.
 """
 
 import sys
+import os
 from pathlib import Path
 
 block_cipher = None
 
-# Get the base directory
-base_dir = Path(SPECPATH)
+# Get project root directory (where spec file is located)
+# Build script changes to project directory, so use CWD for reliability
+# This is more reliable than SPECPATH which may have path resolution issues
+project_root = Path(os.getcwd())
 
 a = Analysis(
     ['main.py'],
@@ -88,7 +91,7 @@ a = Analysis(
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
-    noarchive=False,
+    noarchive=True,  # Faster imports - files extracted individually instead of from archive
 )
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
@@ -103,8 +106,8 @@ exe = EXE(
     name='STL 3D Viewer',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=True,  # Enable stripping for size reduction
-    upx=True,
+    strip=False,  # Disable stripping to prevent DLL loading issues
+    upx=False,  # Disable UPX compression - decompression adds startup time and can corrupt DLLs
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,  # Windowed app, no console

@@ -131,7 +131,7 @@ jobs:
     
     - name: Build application
       run: |
-        pyinstaller stl_viewer_windows.spec --clean --noconfirm
+        powershell -ExecutionPolicy Bypass -File build_windows.ps1
     
     - name: Verify EXE exists
       run: |
