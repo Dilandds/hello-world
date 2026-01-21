@@ -26,12 +26,22 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+
+def safe_flush(stream):
+    """Safely flush a stream, handling None (common in PyInstaller Windows builds)."""
+    if stream is not None:
+        try:
+            stream.flush()
+        except (AttributeError, OSError):
+            pass  # Stream may not support flush or may be closed
+
+
 # Print immediately to stdout (before Qt might interfere)
 print("=" * 50, file=sys.stderr)
 print("STL Viewer: Starting application...", file=sys.stderr)
 print(f"Log file: {log_file}", file=sys.stderr)
 print("=" * 50, file=sys.stderr)
-sys.stderr.flush()
+safe_flush(sys.stderr)
 
 from PyQt5.QtWidgets import QApplication, QMessageBox, QDialog
 from PyQt5.QtCore import QTimer
@@ -46,7 +56,7 @@ def main():
     print("=" * 50, file=sys.stderr)
     print("Starting STL 3D Viewer Application", file=sys.stderr)
     print("=" * 50, file=sys.stderr)
-    sys.stderr.flush()
+    safe_flush(sys.stderr)
     
     logger.info("=" * 50)
     logger.info("Starting STL 3D Viewer Application")
@@ -54,42 +64,42 @@ def main():
     
     try:
         print("Step 1: Creating QApplication...", file=sys.stderr)
-        sys.stderr.flush()
+        safe_flush(sys.stderr)
         logger.info("Step 1: Creating QApplication...")
         app = QApplication(sys.argv)
         print("✓ QApplication created successfully", file=sys.stderr)
-        sys.stderr.flush()
+        safe_flush(sys.stderr)
         logger.info("✓ QApplication created successfully")
         
         # Apply global stylesheet early to ensure QMessageBox dialogs are styled
         app.setStyleSheet(get_global_stylesheet())
         print("✓ Global stylesheet applied", file=sys.stderr)
-        sys.stderr.flush()
+        safe_flush(sys.stderr)
         logger.info("✓ Global stylesheet applied")
         
         print("Step 2: Setting application properties...", file=sys.stderr)
-        sys.stderr.flush()
+        safe_flush(sys.stderr)
         logger.info("Step 2: Setting application properties...")
         app.setApplicationName("STL 3D Viewer")
         app.setOrganizationName("Jewellery Viewer")
         print("✓ Application properties set", file=sys.stderr)
-        sys.stderr.flush()
+        safe_flush(sys.stderr)
         logger.info("✓ Application properties set")
         
         # Step 2.5: Check license
         print("Step 2.5: Checking license...", file=sys.stderr)
-        sys.stderr.flush()
+        safe_flush(sys.stderr)
         logger.info("Step 2.5: Checking license...")
         
         if not is_license_valid_stored():
             print("License not valid, showing license dialog...", file=sys.stderr)
-            sys.stderr.flush()
+            safe_flush(sys.stderr)
             logger.info("License not valid, showing license dialog...")
             
             license_dialog = LicenseDialog()
             if license_dialog.exec() != QDialog.Accepted:
                 print("License dialog cancelled, exiting application", file=sys.stderr)
-                sys.stderr.flush()
+                safe_flush(sys.stderr)
                 logger.info("License dialog cancelled, exiting application")
                 QMessageBox.information(
                     None,
@@ -100,23 +110,23 @@ def main():
                 return 0  # Exit application
             
             print("✓ License validated successfully", file=sys.stderr)
-            sys.stderr.flush()
+            safe_flush(sys.stderr)
             logger.info("✓ License validated successfully")
         else:
             print("✓ Valid license found in cache", file=sys.stderr)
-            sys.stderr.flush()
+            safe_flush(sys.stderr)
             logger.info("✓ Valid license found in cache")
         
         print("Step 3: Creating main window...", file=sys.stderr)
-        sys.stderr.flush()
+        safe_flush(sys.stderr)
         logger.info("Step 3: Creating main window...")
         window = STLViewerWindow()
         print("✓ Main window created successfully", file=sys.stderr)
-        sys.stderr.flush()
+        safe_flush(sys.stderr)
         logger.info("✓ Main window created successfully")
         
         print("Step 4: Showing window...", file=sys.stderr)
-        sys.stderr.flush()
+        safe_flush(sys.stderr)
         logger.info("Step 4: Showing window...")
         window.show()
         
@@ -129,20 +139,20 @@ def main():
         app.processEvents()
         
         print(f"✓ Window shown - Position: {window.pos()}, Size: {window.size()}, Visible: {window.isVisible()}", file=sys.stderr)
-        sys.stderr.flush()
+        safe_flush(sys.stderr)
         logger.info(f"✓ Window shown - Position: {window.pos()}, Size: {window.size()}, Visible: {window.isVisible()}")
         
         # Give QtInteractor time to initialize (it will be triggered by showEvent)
         app.processEvents()
         
         print("Step 5: Starting event loop...", file=sys.stderr)
-        sys.stderr.flush()
+        safe_flush(sys.stderr)
         logger.info("Step 5: Starting event loop...")
         # Run application event loop
         sys.exit(app.exec())
     except Exception as e:
         print(f"FATAL ERROR: {e}", file=sys.stderr)
-        sys.stderr.flush()
+        safe_flush(sys.stderr)
         logger.error(f"Fatal error in main: {e}", exc_info=True)
         raise
 
