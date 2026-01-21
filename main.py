@@ -38,6 +38,7 @@ from PyQt5.QtCore import QTimer
 from stl_viewer import STLViewerWindow
 from core.license_validator import is_license_valid_stored
 from ui.license_dialog import LicenseDialog
+from ui.styles import get_global_stylesheet
 
 
 def main():
@@ -59,6 +60,12 @@ def main():
         print("✓ QApplication created successfully", file=sys.stderr)
         sys.stderr.flush()
         logger.info("✓ QApplication created successfully")
+        
+        # Apply global stylesheet early to ensure QMessageBox dialogs are styled
+        app.setStyleSheet(get_global_stylesheet())
+        print("✓ Global stylesheet applied", file=sys.stderr)
+        sys.stderr.flush()
+        logger.info("✓ Global stylesheet applied")
         
         print("Step 2: Setting application properties...", file=sys.stderr)
         sys.stderr.flush()

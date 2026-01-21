@@ -343,6 +343,47 @@ def get_global_stylesheet(theme=None):
             background-color: {theme.button_default_bg};
             color: {theme.text_secondary};
         }}
+        /* QMessageBox styling - ensure proper colors on Windows and macOS */
+        QMessageBox {{
+            background-color: {theme.background};
+            color: {theme.text_primary};
+        }}
+        QMessageBox QLabel {{
+            background-color: transparent;
+            color: {theme.text_primary};
+        }}
+        QMessageBox QTextEdit {{
+            background-color: {theme.input_bg};
+            color: {theme.text_primary};
+            border: 1px solid {theme.input_border};
+            border-radius: 6px;
+        }}
+        QMessageBox QPushButton {{
+            background-color: {theme.button_primary};
+            color: {theme.text_white};
+            border: none;
+            border-radius: 6px;
+            padding: 8px 20px;
+            font-size: 13px;
+            font-weight: bold;
+            min-width: 80px;
+        }}
+        QMessageBox QPushButton:hover {{
+            background-color: {theme.button_primary_hover};
+            color: {theme.text_white};
+        }}
+        QMessageBox QPushButton:pressed {{
+            background-color: {theme.button_primary_pressed};
+            color: {theme.text_white};
+        }}
+        QMessageBox QPushButton:default {{
+            background-color: {theme.button_primary};
+            color: {theme.text_white};
+        }}
+        QMessageBox QPushButton:focus {{
+            background-color: {theme.button_primary};
+            color: {theme.text_white};
+        }}
     """
 
 
