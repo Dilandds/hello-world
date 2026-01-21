@@ -33,9 +33,11 @@ print(f"Log file: {log_file}", file=sys.stderr)
 print("=" * 50, file=sys.stderr)
 sys.stderr.flush()
 
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QMessageBox, QDialog
 from PyQt5.QtCore import QTimer
 from stl_viewer import STLViewerWindow
+from core.license_validator import is_license_valid_stored
+from ui.license_dialog import LicenseDialog
 
 
 def main():
@@ -66,6 +68,37 @@ def main():
         print("✓ Application properties set", file=sys.stderr)
         sys.stderr.flush()
         logger.info("✓ Application properties set")
+        
+        # Step 2.5: Check license
+        print("Step 2.5: Checking license...", file=sys.stderr)
+        sys.stderr.flush()
+        logger.info("Step 2.5: Checking license...")
+        
+        if not is_license_valid_stored():
+            print("License not valid, showing license dialog...", file=sys.stderr)
+            sys.stderr.flush()
+            logger.info("License not valid, showing license dialog...")
+            
+            license_dialog = LicenseDialog()
+            if license_dialog.exec() != QDialog.Accepted:
+                print("License dialog cancelled, exiting application", file=sys.stderr)
+                sys.stderr.flush()
+                logger.info("License dialog cancelled, exiting application")
+                QMessageBox.information(
+                    None,
+                    "License Required",
+                    "A valid license key is required to use this application.\n"
+                    "The application will now exit."
+                )
+                return 0  # Exit application
+            
+            print("✓ License validated successfully", file=sys.stderr)
+            sys.stderr.flush()
+            logger.info("✓ License validated successfully")
+        else:
+            print("✓ Valid license found in cache", file=sys.stderr)
+            sys.stderr.flush()
+            logger.info("✓ Valid license found in cache")
         
         print("Step 3: Creating main window...", file=sys.stderr)
         sys.stderr.flush()
