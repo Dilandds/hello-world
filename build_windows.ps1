@@ -1,7 +1,7 @@
 # Build script for Windows EXE distribution
 # Creates standalone .exe file using PyInstaller
 
-$ErrorActionPreference = "Stop"  # Exit on error
+$ErrorActionPreference = "Stop"
 
 Write-Host "Building STL 3D Viewer for Windows..." -ForegroundColor Cyan
 
@@ -11,15 +11,16 @@ Set-Location $ScriptDir
 
 # Check if PyInstaller is installed
 $pyinstallerCmd = Get-Command pyinstaller -ErrorAction SilentlyContinue
-if (-not $pyinstallerCmd) {
+if ($null -eq $pyinstallerCmd) {
     Write-Host "PyInstaller not found. Installing..." -ForegroundColor Yellow
     pip install pyinstaller>=6.0.0
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Error: Failed to install PyInstaller" -ForegroundColor Red
         exit 1
     }
-} else {
-    Write-Host "✓ PyInstaller found" -ForegroundColor Green
+}
+else {
+    Write-Host "PyInstaller found" -ForegroundColor Green
 }
 
 # Clean previous builds
@@ -47,12 +48,12 @@ if (-not (Test-Path $ExePath)) {
     exit 1
 }
 
-Write-Host "✓ EXE created successfully: $ExePath" -ForegroundColor Green
+Write-Host "EXE created successfully: $ExePath" -ForegroundColor Green
 
 # Get file size
 $FileInfo = Get-Item $ExePath
 $SizeMB = [math]::Round($FileInfo.Length / 1MB, 2)
-Write-Host "  Size: $SizeMB MB" -ForegroundColor Cyan
+Write-Host "Size: $SizeMB MB" -ForegroundColor Cyan
 
 Write-Host ""
 Write-Host "Build complete! File:" -ForegroundColor Green
