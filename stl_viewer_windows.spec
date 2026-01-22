@@ -36,10 +36,10 @@ splash_image_paths = [
 for src_path, dst_path in splash_image_paths:
     full_path = project_root / src_path
     if full_path.exists():
-        print(f"[PyInstaller] ✓ Adding to bundle: {src_path}")
+        print(f"[PyInstaller] [OK] Adding to bundle: {src_path}")
         datas.append((src_path, dst_path))
     else:
-        print(f"[PyInstaller] ✗ NOT found: {full_path}")
+        print(f"[PyInstaller] [X] NOT found: {full_path}")
 
 print(f"[PyInstaller] Final datas list has {len(datas)} items")
 
@@ -149,8 +149,8 @@ exe = EXE(
 # Debug icon file
 icon_path = project_root / 'assets' / 'icon.ico'
 if icon_path.exists():
-    print(f"[PyInstaller] ✓ Icon file found: {icon_path}")
+    print(f"[PyInstaller] [OK] Icon file found: {icon_path}")
     print(f"[PyInstaller] Icon will be used for EXE")
 else:
-    print(f"[PyInstaller] ✗ Icon file NOT found: {icon_path}")
+    print(f"[PyInstaller] [X] Icon file NOT found: {icon_path}")
     print(f"[PyInstaller] App will use default Windows icon")

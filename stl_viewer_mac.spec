@@ -36,10 +36,10 @@ splash_image_paths = [
 for src_path, dst_path in splash_image_paths:
     full_path = project_root / src_path
     if full_path.exists():
-        print(f"[PyInstaller] ✓ Adding to bundle: {src_path}")
+        print(f"[PyInstaller] [OK] Adding to bundle: {src_path}")
         datas.append((src_path, dst_path))
     else:
-        print(f"[PyInstaller] ✗ NOT found: {full_path}")
+        print(f"[PyInstaller] [X] NOT found: {full_path}")
 
 print(f"[PyInstaller] Final datas list has {len(datas)} items")
 
@@ -155,9 +155,9 @@ coll = COLLECT(
 bundle_icon_path = project_root / 'assets' / 'icon.icns'
 bundle_icon = str(bundle_icon_path) if bundle_icon_path.exists() else None
 if bundle_icon:
-    print(f"[PyInstaller] ✓ Icon will be used for BUNDLE: {bundle_icon}")
+    print(f"[PyInstaller] [OK] Icon will be used for BUNDLE: {bundle_icon}")
 else:
-    print(f"[PyInstaller] ✗ Icon NOT found for BUNDLE: {bundle_icon_path}")
+    print(f"[PyInstaller] [X] Icon NOT found for BUNDLE: {bundle_icon_path}")
 
 app = BUNDLE(
     coll,
