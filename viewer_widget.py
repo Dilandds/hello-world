@@ -15,10 +15,20 @@ os.environ.setdefault('PYVISTA_USE_PANEL', 'false')
 
 logger = logging.getLogger(__name__)
 
+
+def safe_flush(stream):
+    """Safely flush a stream, handling None (common in PyInstaller Windows builds)."""
+    if stream is not None:
+        try:
+            stream.flush()
+        except (AttributeError, OSError):
+            pass  # Stream may not support flush or may be closed
+
+
 # Print to stderr for immediate visibility
 def debug_print(msg):
     print(f"[DEBUG] {msg}", file=sys.stderr)
-    sys.stderr.flush()
+    safe_flush(sys.stderr)
 
 
 class STLViewerWidget(QWidget):
@@ -90,11 +100,11 @@ class STLViewerWidget(QWidget):
             debug_print(f"STLViewerWidget: PyVista version: {pv.__version__}")
             debug_print(f"STLViewerWidget: Widget visible: {self.isVisible()}, Window visible: {self.window().isVisible()}")
             logger.info(f"STLViewerWidget: Widget visible: {self.isVisible()}, Window visible: {self.window().isVisible()}")
-            sys.stderr.flush()
+            safe_flush(sys.stderr)
             
             debug_print("STLViewerWidget: Creating QtInteractor (this may take a moment)...")
             logger.info("STLViewerWidget: Creating QtInteractor (this may take a moment)...")
-            sys.stderr.flush()
+            safe_flush(sys.stderr)
             
             # Process events multiple times before creating QtInteractor
             for _ in range(3):
@@ -106,7 +116,7 @@ class STLViewerWidget(QWidget):
             
             debug_print("STLViewerWidget: QtInteractor created successfully")
             logger.info("STLViewerWidget: QtInteractor created successfully")
-            sys.stderr.flush()
+            safe_flush(sys.stderr)
             
             # Process events after creation
             QApplication.processEvents()
@@ -125,7 +135,7 @@ class STLViewerWidget(QWidget):
             
             debug_print("STLViewerWidget: Configuring plotter settings...")
             logger.info("STLViewerWidget: Configuring plotter settings...")
-            sys.stderr.flush()
+            safe_flush(sys.stderr)
             
             # Configure plotter for smooth interaction with large models
             try:
@@ -146,7 +156,7 @@ class STLViewerWidget(QWidget):
             
             debug_print("STLViewerWidget: Initializing empty scene...")
             logger.info("STLViewerWidget: Initializing empty scene...")
-            sys.stderr.flush()
+            safe_flush(sys.stderr)
             
             # Initialize with empty scene - do this carefully to avoid hangs
             try:
@@ -164,7 +174,7 @@ class STLViewerWidget(QWidget):
             try:
                 debug_print("STLViewerWidget: Adding axes...")
                 logger.info("STLViewerWidget: Adding axes...")
-                sys.stderr.flush()
+                safe_flush(sys.stderr)
                 self.plotter.add_axes()
                 QApplication.processEvents()
                 debug_print("STLViewerWidget: Axes added")
@@ -187,7 +197,7 @@ class STLViewerWidget(QWidget):
             self._initialized = True
             debug_print("STLViewerWidget: QtInteractor initialization complete")
             logger.info("STLViewerWidget: QtInteractor initialization complete")
-            sys.stderr.flush()
+            safe_flush(sys.stderr)
             
             # Final event processing - multiple times to ensure UI updates
             for _ in range(5):
@@ -200,7 +210,7 @@ class STLViewerWidget(QWidget):
             
             debug_print("STLViewerWidget: All initialization complete, widget should be functional")
             logger.info("STLViewerWidget: All initialization complete, widget should be functional")
-            sys.stderr.flush()
+            safe_flush(sys.stderr)
             
         except Exception as e:
             debug_print(f"STLViewerWidget: ERROR during plotter initialization: {e}")

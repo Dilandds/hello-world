@@ -25,10 +25,20 @@ from core.mesh_calculator import MeshCalculator
 
 logger = logging.getLogger(__name__)
 
+
+def safe_flush(stream):
+    """Safely flush a stream, handling None (common in PyInstaller Windows builds)."""
+    if stream is not None:
+        try:
+            stream.flush()
+        except (AttributeError, OSError):
+            pass  # Stream may not support flush or may be closed
+
+
 # Print to stderr for immediate visibility
 def debug_print(msg):
     print(f"[DEBUG] {msg}", file=sys.stderr)
-    sys.stderr.flush()
+    safe_flush(sys.stderr)
 
 
 class STLViewerWindow(QMainWindow):
