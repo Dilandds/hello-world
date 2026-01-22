@@ -45,7 +45,7 @@ print("=" * 50, file=sys.stderr)
 safe_flush(sys.stderr)
 
 from PyQt5.QtWidgets import QApplication, QMessageBox, QDialog, QSplashScreen
-from PyQt5.QtCore import QTimer, Qt as QtCore
+from PyQt5.QtCore import QTimer, Qt as QtCore, Qt
 from PyQt5.QtGui import QPixmap, QColor
 from stl_viewer import STLViewerWindow
 from core.license_validator import is_license_valid_stored
@@ -151,9 +151,25 @@ def main():
             safe_flush(sys.stderr)
             logger.info("License not valid, showing license dialog...")
             
-            # Keep splash visible and show license dialog as modal on top
+            # Temporarily remove WindowStaysOnTopHint from splash so license dialog appears on top
+            # Store original flags
+            original_flags = splash.windowFlags()
+            # Remove WindowStaysOnTopHint
+            splash.setWindowFlags(splash.windowFlags() & ~Qt.WindowStaysOnTopHint)
+            splash.show()  # Re-show with new flags
+            app.processEvents()
+            
+            # Create and show license dialog (it will appear on top now)
             license_dialog = LicenseDialog()
+            license_dialog.setWindowFlags(license_dialog.windowFlags() | Qt.WindowStaysOnTopHint)
+            license_dialog.raise_()
+            license_dialog.activateWindow()
+            
             if license_dialog.exec() != QDialog.Accepted:
+                # Restore splash flags before exiting
+                splash.setWindowFlags(original_flags)
+                splash.show()
+                app.processEvents()
                 print("License dialog cancelled, exiting application", file=sys.stderr)
                 safe_flush(sys.stderr)
                 logger.info("License dialog cancelled, exiting application")
@@ -165,6 +181,11 @@ def main():
                     "The application will now exit."
                 )
                 return 0  # Exit application
+            
+            # Restore splash window flags to keep it on top again
+            splash.setWindowFlags(original_flags)
+            splash.show()
+            app.processEvents()
             
             splash.showMessage("License validated. Starting application...", 
                               QtCore.AlignCenter | QtCore.AlignBottom, 
