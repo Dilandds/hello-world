@@ -4,6 +4,7 @@ Main entry point for the STL 3D Viewer application.
 import sys
 import logging
 import os
+from pathlib import Path
 
 # Set OpenGL environment variables for macOS compatibility
 # These help with PyVista/VTK rendering issues on macOS
@@ -43,8 +44,9 @@ print(f"Log file: {log_file}", file=sys.stderr)
 print("=" * 50, file=sys.stderr)
 safe_flush(sys.stderr)
 
-from PyQt5.QtWidgets import QApplication, QMessageBox, QDialog
-from PyQt5.QtCore import QTimer
+from PyQt5.QtWidgets import QApplication, QMessageBox, QDialog, QSplashScreen
+from PyQt5.QtCore import QTimer, Qt as QtCore
+from PyQt5.QtGui import QPixmap, QColor
 from stl_viewer import STLViewerWindow
 from core.license_validator import is_license_valid_stored
 from ui.license_dialog import LicenseDialog
@@ -86,15 +88,71 @@ def main():
         safe_flush(sys.stderr)
         logger.info("✓ Application properties set")
         
+        # Create splash screen
+        splash_pixmap = None
+        
+        # Try to load splash screen image
+        if getattr(sys, 'frozen', False):
+            # PyInstaller bundle
+            base_path = Path(sys._MEIPASS)
+        else:
+            # Development mode
+            base_path = Path(__file__).parent
+        
+        splash_image_paths = [
+            base_path / 'assets' / 'splash.png',
+            base_path / 'assets' / 'splash.jpg',
+            base_path / 'assets' / 'logo.png',
+            base_path / 'assets' / 'logo.jpg',
+        ]
+        
+        for img_path in splash_image_paths:
+            if img_path.exists():
+                splash_pixmap = QPixmap(str(img_path))
+                if not splash_pixmap.isNull():
+                    # Scale if too large
+                    if splash_pixmap.width() > 800 or splash_pixmap.height() > 600:
+                        splash_pixmap = splash_pixmap.scaled(800, 600, QtCore.KeepAspectRatio, QtCore.SmoothTransformation)
+                    break
+        
+        # Create default splash if image not found
+        if splash_pixmap is None or splash_pixmap.isNull():
+            splash_pixmap = QPixmap(600, 450)
+            splash_pixmap.fill(QColor("#F8FAFC"))
+        
+        splash = QSplashScreen(splash_pixmap, QtCore.WindowStaysOnTopHint)
+        splash.setStyleSheet("""
+            QSplashScreen {
+                background-color: #F8FAFC;
+                color: #1E293B;
+                font-size: 14px;
+                font-weight: 500;
+            }
+        """)
+        
+        splash.showMessage("Loading STL 3D Viewer...", 
+                          QtCore.AlignCenter | QtCore.AlignBottom, 
+                          QColor("#5294E2"))
+        splash.show()
+        app.processEvents()
+        
         # Step 2.5: Check license
         print("Step 2.5: Checking license...", file=sys.stderr)
         safe_flush(sys.stderr)
         logger.info("Step 2.5: Checking license...")
         
         if not is_license_valid_stored():
+            splash.showMessage("License validation required...", 
+                              QtCore.AlignCenter | QtCore.AlignBottom, 
+                              QColor("#5294E2"))
+            app.processEvents()
+            
             print("License not valid, showing license dialog...", file=sys.stderr)
             safe_flush(sys.stderr)
             logger.info("License not valid, showing license dialog...")
+            
+            splash.hide()
+            app.processEvents()
             
             license_dialog = LicenseDialog()
             if license_dialog.exec() != QDialog.Accepted:
@@ -109,6 +167,12 @@ def main():
                 )
                 return 0  # Exit application
             
+            splash.show()
+            splash.showMessage("License validated. Starting application...", 
+                              QtCore.AlignCenter | QtCore.AlignBottom, 
+                              QColor("#5294E2"))
+            app.processEvents()
+            
             print("✓ License validated successfully", file=sys.stderr)
             safe_flush(sys.stderr)
             logger.info("✓ License validated successfully")
@@ -116,6 +180,11 @@ def main():
             print("✓ Valid license found in cache", file=sys.stderr)
             safe_flush(sys.stderr)
             logger.info("✓ Valid license found in cache")
+        
+        splash.showMessage("Loading application...", 
+                          QtCore.AlignCenter | QtCore.AlignBottom, 
+                          QColor("#5294E2"))
+        app.processEvents()
         
         print("Step 3: Creating main window...", file=sys.stderr)
         safe_flush(sys.stderr)
@@ -144,6 +213,9 @@ def main():
         
         # Give QtInteractor time to initialize (it will be triggered by showEvent)
         app.processEvents()
+        
+        # Finish splash screen
+        splash.finish(window)
         
         print("Step 5: Starting event loop...", file=sys.stderr)
         safe_flush(sys.stderr)

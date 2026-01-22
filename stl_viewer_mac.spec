@@ -4,21 +4,50 @@ PyInstaller spec file for STL 3D Viewer macOS build.
 """
 
 import sys
+import os
 from pathlib import Path
 
 block_cipher = None
 
-# Get the base directory
-base_dir = Path(SPECPATH)
+# Get project root directory (where spec file is located)
+# Build script changes to project directory, so use CWD for reliability
+# This is more reliable than SPECPATH which may have path resolution issues
+project_root = Path(os.getcwd())
+
+# Debug: Print what we're checking
+print(f"[PyInstaller] Project root: {project_root}")
+print(f"[PyInstaller] Checking for assets/splash.png: {(project_root / 'assets' / 'splash.png').exists()}")
+print(f"[PyInstaller] Checking for assets/icon.icns: {(project_root / 'assets' / 'icon.icns').exists()}")
+
+# Build datas list with assets
+datas = [
+    ('ui', 'ui'),
+    ('core', 'core'),
+]
+
+# Add splash screen images if they exist
+splash_image_paths = [
+    ('assets/splash.png', 'assets'),
+    ('assets/splash.jpg', 'assets'),
+    ('assets/logo.png', 'assets'),
+    ('assets/logo.jpg', 'assets'),
+]
+
+for src_path, dst_path in splash_image_paths:
+    full_path = project_root / src_path
+    if full_path.exists():
+        print(f"[PyInstaller] ✓ Adding to bundle: {src_path}")
+        datas.append((src_path, dst_path))
+    else:
+        print(f"[PyInstaller] ✗ NOT found: {full_path}")
+
+print(f"[PyInstaller] Final datas list has {len(datas)} items")
 
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('ui', 'ui'),
-        ('core', 'core'),
-    ],
+    datas=datas,
     hiddenimports=[
         # PyQt5 modules
         'PyQt5',
@@ -122,9 +151,25 @@ coll = COLLECT(
     name='STL 3D Viewer',
 )
 
+# Debug icon for BUNDLE
+bundle_icon_path = project_root / 'assets' / 'icon.icns'
+bundle_icon = str(bundle_icon_path) if bundle_icon_path.exists() else None
+if bundle_icon:
+    print(f"[PyInstaller] ✓ Icon will be used for BUNDLE: {bundle_icon}")
+else:
+    print(f"[PyInstaller] ✗ Icon NOT found for BUNDLE: {bundle_icon_path}")
+
 app = BUNDLE(
     coll,
     name='STL 3D Viewer.app',
-    icon=None,  # Can add icon.icns here if available
+    icon=bundle_icon,
     bundle_identifier='com.jewelleryviewer.stlviewer',
+    info_plist={
+        'NSPrincipalClass': 'NSApplication',
+        'NSHighResolutionCapable': 'True',
+        'CFBundleShortVersionString': '1.0.0',
+        'CFBundleVersion': '1.0.0',
+        'NSHumanReadableCopyright': 'Copyright © 2024',
+        'LSMinimumSystemVersion': '10.13',
+    },
 )

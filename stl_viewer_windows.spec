@@ -14,14 +14,40 @@ block_cipher = None
 # This is more reliable than SPECPATH which may have path resolution issues
 project_root = Path(os.getcwd())
 
+# Debug: Print what we're checking
+print(f"[PyInstaller] Project root: {project_root}")
+print(f"[PyInstaller] Checking for assets/splash.png: {(project_root / 'assets' / 'splash.png').exists()}")
+print(f"[PyInstaller] Checking for assets/icon.ico: {(project_root / 'assets' / 'icon.ico').exists()}")
+
+# Build datas list with assets
+datas = [
+    ('ui', 'ui'),
+    ('core', 'core'),
+]
+
+# Add splash screen images if they exist
+splash_image_paths = [
+    ('assets/splash.png', 'assets'),
+    ('assets/splash.jpg', 'assets'),
+    ('assets/logo.png', 'assets'),
+    ('assets/logo.jpg', 'assets'),
+]
+
+for src_path, dst_path in splash_image_paths:
+    full_path = project_root / src_path
+    if full_path.exists():
+        print(f"[PyInstaller] ✓ Adding to bundle: {src_path}")
+        datas.append((src_path, dst_path))
+    else:
+        print(f"[PyInstaller] ✗ NOT found: {full_path}")
+
+print(f"[PyInstaller] Final datas list has {len(datas)} items")
+
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('ui', 'ui'),
-        ('core', 'core'),
-    ],
+    datas=datas,
     hiddenimports=[
         # PyQt5 modules
         'PyQt5',
@@ -116,5 +142,15 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,  # Can add icon.ico here if available
+    icon=str(project_root / 'assets' / 'icon.ico') if (project_root / 'assets' / 'icon.ico').exists() else None,
+    version_file=None,
 )
+
+# Debug icon file
+icon_path = project_root / 'assets' / 'icon.ico'
+if icon_path.exists():
+    print(f"[PyInstaller] ✓ Icon file found: {icon_path}")
+    print(f"[PyInstaller] Icon will be used for EXE")
+else:
+    print(f"[PyInstaller] ✗ Icon file NOT found: {icon_path}")
+    print(f"[PyInstaller] App will use default Windows icon")
