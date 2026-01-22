@@ -151,14 +151,13 @@ def main():
             safe_flush(sys.stderr)
             logger.info("License not valid, showing license dialog...")
             
-            splash.hide()
-            app.processEvents()
-            
+            # Keep splash visible and show license dialog as modal on top
             license_dialog = LicenseDialog()
             if license_dialog.exec() != QDialog.Accepted:
                 print("License dialog cancelled, exiting application", file=sys.stderr)
                 safe_flush(sys.stderr)
                 logger.info("License dialog cancelled, exiting application")
+                splash.finish(None)
                 QMessageBox.information(
                     None,
                     "License Required",
@@ -167,7 +166,6 @@ def main():
                 )
                 return 0  # Exit application
             
-            splash.show()
             splash.showMessage("License validated. Starting application...", 
                               QtCore.AlignCenter | QtCore.AlignBottom, 
                               QColor("#5294E2"))
