@@ -289,18 +289,26 @@ class STLViewerWidget(QWidget):
             # This ensures volume calculations use the unmodified mesh
             self.current_mesh = mesh.copy()
             
-            # Prepare mesh for high-quality rendering
+            # Prepare mesh for high-quality rendering (optional enhancements)
+            # These steps are optional - if they fail, we'll use the original mesh
             logger.info("load_stl: Preparing mesh for rendering...")
-            # Ensure mesh is triangulated (required for proper rendering)
-            if not mesh.is_all_triangles():
-                logger.info("load_stl: Triangulating mesh...")
-                mesh = mesh.triangulate()
+            render_mesh = mesh  # Start with original mesh
             
-            # Compute normals for proper smooth shading and surface detail
+            # Try to triangulate if needed (optional enhancement)
+            try:
+                if not render_mesh.is_all_triangles():
+                    logger.info("load_stl: Triangulating mesh...")
+                    render_mesh = render_mesh.triangulate()
+                    logger.info("load_stl: Mesh triangulated successfully")
+            except Exception as e:
+                logger.warning(f"load_stl: Could not triangulate mesh: {e}, using original mesh")
+                render_mesh = mesh  # Fallback to original mesh
+            
+            # Try to compute normals for proper smooth shading (optional enhancement)
             # This is critical for Windows rendering to show detail correctly
             logger.info("load_stl: Computing mesh normals...")
             try:
-                mesh.compute_normals(inplace=True, point_normals=True, cell_normals=False)
+                render_mesh.compute_normals(inplace=True, point_normals=True, cell_normals=False)
                 logger.info("load_stl: Mesh normals computed successfully")
             except Exception as e:
                 logger.warning(f"load_stl: Could not compute normals: {e}, continuing anyway")
@@ -308,9 +316,9 @@ class STLViewerWidget(QWidget):
             logger.info("load_stl: Adding mesh to plotter...")
             # Add mesh to plotter with consistent rendering parameters
             # Store the actor reference so we can remove it later
-            # Use the processed mesh for rendering (with normals and triangulation)
+            # Use the processed mesh for rendering (with normals and triangulation if successful)
             self.current_actor = self.plotter.add_mesh(
-                mesh,
+                render_mesh,
                 color='lightblue',
                 show_edges=False,
                 smooth_shading=True,
