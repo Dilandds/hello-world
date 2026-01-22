@@ -166,14 +166,28 @@ class STLViewerWidgetOffscreen(QWidget):
             mesh = pv.read(file_path)
             logger.info(f"load_stl: STL file read successfully. Mesh info: {mesh}")
             
-            # Store the original mesh BEFORE adding to plotter
+            # Store the original mesh BEFORE processing for rendering
             # This ensures volume calculations use the unmodified mesh
-            # (plotter.add_mesh may modify the mesh for rendering)
             self.current_mesh = mesh.copy()
+            
+            # Prepare mesh for high-quality rendering
+            logger.info("load_stl: Preparing mesh for rendering...")
+            # Ensure mesh is triangulated (required for proper rendering)
+            if not mesh.is_all_triangles():
+                logger.info("load_stl: Triangulating mesh...")
+                mesh = mesh.triangulate()
+            
+            # Compute normals for proper smooth shading and surface detail
+            logger.info("load_stl: Computing mesh normals...")
+            try:
+                mesh.compute_normals(inplace=True, point_normals=True, cell_normals=False)
+                logger.info("load_stl: Mesh normals computed successfully")
+            except Exception as e:
+                logger.warning(f"load_stl: Could not compute normals: {e}, continuing anyway")
             
             logger.info("load_stl: Adding mesh to plotter...")
             # Add mesh to plotter
-            # Use the original mesh for rendering (okay to modify for display)
+            # Use the processed mesh for rendering (with normals and triangulation)
             self.plotter.add_mesh(
                 mesh,
                 color='lightblue',

@@ -285,15 +285,30 @@ class STLViewerWidget(QWidget):
             # Check if this is the first mesh load (before we update current_mesh)
             is_first_load = (self.current_mesh is None)
             
-            # Store the original mesh BEFORE adding to plotter
+            # Store the original mesh BEFORE processing for rendering
             # This ensures volume calculations use the unmodified mesh
-            # (plotter.add_mesh may modify the mesh for rendering)
             self.current_mesh = mesh.copy()
+            
+            # Prepare mesh for high-quality rendering
+            logger.info("load_stl: Preparing mesh for rendering...")
+            # Ensure mesh is triangulated (required for proper rendering)
+            if not mesh.is_all_triangles():
+                logger.info("load_stl: Triangulating mesh...")
+                mesh = mesh.triangulate()
+            
+            # Compute normals for proper smooth shading and surface detail
+            # This is critical for Windows rendering to show detail correctly
+            logger.info("load_stl: Computing mesh normals...")
+            try:
+                mesh.compute_normals(inplace=True, point_normals=True, cell_normals=False)
+                logger.info("load_stl: Mesh normals computed successfully")
+            except Exception as e:
+                logger.warning(f"load_stl: Could not compute normals: {e}, continuing anyway")
             
             logger.info("load_stl: Adding mesh to plotter...")
             # Add mesh to plotter with consistent rendering parameters
             # Store the actor reference so we can remove it later
-            # Use the original mesh for rendering (okay to modify for display)
+            # Use the processed mesh for rendering (with normals and triangulation)
             self.current_actor = self.plotter.add_mesh(
                 mesh,
                 color='lightblue',
@@ -315,7 +330,16 @@ class STLViewerWidget(QWidget):
             self.plotter.reset_camera()
             
             # Force renderer update to ensure consistent appearance
+            # Explicitly render on Windows to ensure detail is visible
             from PyQt5.QtWidgets import QApplication
+            import sys
+            try:
+                # Force render update, especially important on Windows
+                self.plotter.render()
+                logger.info("load_stl: Renderer updated explicitly")
+            except Exception as e:
+                logger.warning(f"load_stl: Could not force render: {e}, continuing anyway")
+            
             QApplication.processEvents()
             logger.info("load_stl: STL file loaded successfully")
             
