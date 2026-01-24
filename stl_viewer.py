@@ -118,6 +118,10 @@ class STLViewerWindow(QMainWindow):
                 self.viewer_widget = STLViewerWidgetOffscreen()
                 debug_print("init_ui: 3D viewer widget (Offscreen) created successfully")
                 logger.info("init_ui: 3D viewer widget (Offscreen) created successfully")
+            
+            # Connect drag-and-drop signals
+            self._connect_viewer_signals()
+            
             right_layout.addWidget(self.viewer_widget, 1)  # Add with stretch factor
         except Exception as e:
             debug_print(f"init_ui: ERROR creating viewer widget: {e}")
@@ -128,6 +132,7 @@ class STLViewerWindow(QMainWindow):
                 logger.info("init_ui: Trying offscreen renderer as fallback...")
                 from viewer_widget_offscreen import STLViewerWidgetOffscreen
                 self.viewer_widget = STLViewerWidgetOffscreen()
+                self._connect_viewer_signals()
                 right_layout.addWidget(self.viewer_widget, 1)
                 debug_print("init_ui: Offscreen renderer fallback successful")
                 logger.info("init_ui: Offscreen renderer fallback successful")
@@ -163,6 +168,56 @@ class STLViewerWindow(QMainWindow):
         self.toolbar.view_top.connect(self._view_top)
         self.toolbar.toggle_fullscreen.connect(self._toggle_fullscreen)
         self.toolbar.load_file.connect(self.upload_stl_file)
+    
+    def _connect_viewer_signals(self):
+        """Connect viewer widget signals for drag-and-drop."""
+        if hasattr(self.viewer_widget, 'file_dropped'):
+            self.viewer_widget.file_dropped.connect(self._load_dropped_file)
+        if hasattr(self.viewer_widget, 'click_to_upload'):
+            self.viewer_widget.click_to_upload.connect(self.upload_stl_file)
+        if hasattr(self.viewer_widget, 'drop_error'):
+            self.viewer_widget.drop_error.connect(self._show_drop_error)
+    
+    def _load_dropped_file(self, file_path):
+        """Load a file that was dropped on the viewer."""
+        logger.info(f"_load_dropped_file: Loading dropped file: {file_path}")
+        
+        # Validate file extension
+        if not file_path.lower().endswith('.stl'):
+            QMessageBox.warning(
+                self,
+                "Invalid File",
+                "Please select a valid STL file (.stl extension)."
+            )
+            return
+        
+        # Load and display the STL file
+        success = self.viewer_widget.load_stl(file_path)
+        
+        if not success:
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to load STL file:\n{file_path}\n\nPlease ensure the file is a valid STL format."
+            )
+        else:
+            # Update window title with filename
+            filename = Path(file_path).name
+            self.setWindowTitle(f"STL 3D Viewer - {filename}")
+            # Update toolbar load button to show filename
+            self.toolbar.set_loaded_filename(filename)
+            # Enable toolbar controls
+            self.toolbar.set_stl_loaded(True)
+            # Update dimensions display
+            if hasattr(self.viewer_widget, 'current_mesh'):
+                mesh = self.viewer_widget.current_mesh
+                if mesh is not None:
+                    mesh_data = MeshCalculator.get_mesh_data(mesh)
+                    self.sidebar_panel.update_dimensions(mesh_data, file_path)
+    
+    def _show_drop_error(self, error_msg):
+        """Show an error message from drag-and-drop."""
+        QMessageBox.warning(self, "Upload Error", error_msg)
     
     def _toggle_grid(self):
         """Toggle the background grid."""

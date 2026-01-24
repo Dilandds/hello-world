@@ -6,8 +6,9 @@ import os
 import logging
 import pyvista as pv
 from pyvistaqt import QtInteractor
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QStackedLayout
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal
+from ui.drop_zone_overlay import DropZoneOverlay
 
 # Set PyVista environment variables for macOS compatibility
 os.environ.setdefault('PYVISTA_OFF_SCREEN', 'false')
@@ -34,6 +35,11 @@ def debug_print(msg):
 class STLViewerWidget(QWidget):
     """PyVista-based 3D viewer widget for displaying STL files."""
     
+    # Signals for drag-and-drop functionality
+    file_dropped = pyqtSignal(str)
+    click_to_upload = pyqtSignal()
+    drop_error = pyqtSignal(str)
+    
     def __init__(self, parent=None):
         debug_print("STLViewerWidget: Initializing...")
         logger.info("STLViewerWidget: Initializing...")
@@ -41,20 +47,39 @@ class STLViewerWidget(QWidget):
         debug_print("STLViewerWidget: Parent initialized")
         logger.info("STLViewerWidget: Parent initialized")
         
-        # Set up layout first (empty for now)
-        self.layout = QVBoxLayout(self)
+        # Set up stacked layout for overlay
+        self.layout = QStackedLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setStackingMode(QStackedLayout.StackAll)
+        
+        # Container for the 3D viewer
+        self.viewer_container = QWidget()
+        self.viewer_layout = QVBoxLayout(self.viewer_container)
+        self.viewer_layout.setContentsMargins(0, 0, 0, 0)
         
         # Create placeholder label
         self.placeholder = QLabel("Initializing 3D viewer...")
         self.placeholder.setAlignment(Qt.AlignCenter)
-        self.layout.addWidget(self.placeholder)
+        self.viewer_layout.addWidget(self.placeholder)
+        
+        self.layout.addWidget(self.viewer_container)
+        
+        # Create drop zone overlay (shown when no model loaded)
+        self.drop_overlay = DropZoneOverlay()
+        self.drop_overlay.file_dropped.connect(self._on_file_dropped)
+        self.drop_overlay.click_to_upload.connect(self._on_click_upload)
+        self.drop_overlay.error_occurred.connect(self._on_drop_error)
+        self.layout.addWidget(self.drop_overlay)
+        
+        # Show overlay on top initially
+        self.layout.setCurrentWidget(self.drop_overlay)
         
         # Plotter will be initialized later
         self.plotter = None
         self.current_mesh = None
         self.current_actor = None  # Track the mesh actor to remove it specifically
         self._initialized = False
+        self._model_loaded = False
         
         debug_print("STLViewerWidget: Basic initialization complete, QtInteractor will be created after window is shown")
         logger.info("STLViewerWidget: Basic initialization complete, QtInteractor will be created after window is shown")
@@ -112,7 +137,7 @@ class STLViewerWidget(QWidget):
             
             # Initialize PyVista plotter with Qt backend
             # This might block, but we've processed events first
-            self.plotter = QtInteractor(self)
+            self.plotter = QtInteractor(self.viewer_container)
             
             debug_print("STLViewerWidget: QtInteractor created successfully")
             logger.info("STLViewerWidget: QtInteractor created successfully")
@@ -125,12 +150,12 @@ class STLViewerWidget(QWidget):
             QApplication.processEvents()
             
             # Remove placeholder
-            self.layout.removeWidget(self.placeholder)
+            self.viewer_layout.removeWidget(self.placeholder)
             self.placeholder.deleteLater()
             QApplication.processEvents()
             
-            # Add plotter to layout
-            self.layout.addWidget(self.plotter.interactor)
+            # Add plotter to viewer container layout
+            self.viewer_layout.addWidget(self.plotter.interactor)
             QApplication.processEvents()
             
             debug_print("STLViewerWidget: Configuring plotter settings...")
@@ -353,6 +378,10 @@ class STLViewerWidget(QWidget):
             QApplication.processEvents()
             logger.info("load_stl: STL file loaded successfully")
             
+            # Hide overlay when model is loaded
+            self._model_loaded = True
+            self._show_overlay(False)
+
             return True
             
         except Exception as e:
@@ -374,4 +403,27 @@ class STLViewerWidget(QWidget):
         self.plotter.add_axes()
         self.current_mesh = None
         self.current_actor = None
+        self._model_loaded = False
+        # Show overlay again when cleared
+        self._show_overlay(True)
         logger.info("clear_viewer: Viewer cleared")
+    
+    def _on_file_dropped(self, file_path: str):
+        """Handle file dropped on overlay."""
+        self.file_dropped.emit(file_path)
+    
+    def _on_click_upload(self):
+        """Handle click on overlay to upload."""
+        self.click_to_upload.emit()
+    
+    def _on_drop_error(self, error_msg: str):
+        """Handle drop error."""
+        self.drop_error.emit(error_msg)
+    
+    def _show_overlay(self, show: bool):
+        """Show or hide the drop zone overlay."""
+        if show:
+            self.drop_overlay.show()
+            self.drop_overlay.raise_()
+        else:
+            self.drop_overlay.hide()
