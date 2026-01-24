@@ -200,11 +200,11 @@ class STLViewerWidgetOffscreen(QWidget):
                 render_mesh,
                 color='lightblue',
                 show_edges=False,
-                smooth_shading=True,
-                ambient=0.3,
-                diffuse=0.6,
-                specular=0.3,
-                specular_power=30
+                smooth_shading=False,
+                ambient=0.7,  # Increased for less shadowing
+                diffuse=0.4,  # Reduced to balance with higher ambient
+                specular=0.2,  # Reduced for less harsh highlights
+                specular_power=20  # Reduced for softer specular
             )
             
             # Add axes

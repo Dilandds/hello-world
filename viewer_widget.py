@@ -146,13 +146,14 @@ class STLViewerWidget(QWidget):
                 debug_print(f"STLViewerWidget: Could not enable anti-aliasing: {e}")
                 logger.warning(f"STLViewerWidget: Could not enable anti-aliasing: {e}")
             
-            try:
-                self.plotter.enable_shadows()
-                debug_print("STLViewerWidget: Shadows enabled")
-                logger.info("STLViewerWidget: Shadows enabled")
-            except Exception as e:
-                debug_print(f"STLViewerWidget: Could not enable shadows: {e}")
-                logger.warning(f"STLViewerWidget: Could not enable shadows: {e}")
+            # Shadows disabled to reduce excessive shadowing while preserving 3D look
+            # try:
+            #     self.plotter.enable_shadows()
+            #     debug_print("STLViewerWidget: Shadows enabled")
+            #     logger.info("STLViewerWidget: Shadows enabled")
+            # except Exception as e:
+            #     debug_print(f"STLViewerWidget: Could not enable shadows: {e}")
+            #     logger.warning(f"STLViewerWidget: Could not enable shadows: {e}")
             
             debug_print("STLViewerWidget: Initializing empty scene...")
             logger.info("STLViewerWidget: Initializing empty scene...")
@@ -267,10 +268,11 @@ class STLViewerWidget(QWidget):
                         self.plotter.enable_anti_aliasing()
                     except:
                         pass
-                    try:
-                        self.plotter.enable_shadows()
-                    except:
-                        pass
+                    # Shadows disabled to reduce excessive shadowing
+                    # try:
+                    #     self.plotter.enable_shadows()
+                    # except:
+                    #     pass
             elif self.current_mesh is not None:
                 # If we have a mesh but no actor reference, use clear
                 logger.info("load_stl: Clearing previous mesh...")
@@ -321,11 +323,11 @@ class STLViewerWidget(QWidget):
                 render_mesh,
                 color='lightblue',
                 show_edges=False,
-                smooth_shading=True,
-                ambient=0.3,
-                diffuse=0.6,
-                specular=0.3,
-                specular_power=30
+                smooth_shading=False,
+                ambient=0.7,  # Increased for less shadowing
+                diffuse=0.4,  # Reduced to balance with higher ambient
+                specular=0.2,  # Reduced for less harsh highlights
+                specular_power=20  # Reduced for softer specular
             )
             logger.info("load_stl: Mesh added to plotter")
             
