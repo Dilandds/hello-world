@@ -584,6 +584,24 @@ class STLViewerWidget(QWidget):
         except Exception as e:
             logger.warning(f"_restore_renderer_settings: Could not restore anti-aliasing: {e}")
         
+        # Restore lighting settings for consistent visual quality
+        try:
+            # Remove existing lights and add fresh default lighting
+            self.plotter.remove_all_lights()
+            # Add a light kit for balanced illumination (like initial state)
+            light = pv.Light(position=(1, 1, 1), light_type='scene light')
+            light.intensity = 1.0
+            self.plotter.add_light(light)
+            
+            # Add fill light from opposite side for softer shadows
+            fill_light = pv.Light(position=(-1, -0.5, 0.5), light_type='scene light')
+            fill_light.intensity = 0.4
+            self.plotter.add_light(fill_light)
+            
+            logger.info("_restore_renderer_settings: Lighting restored")
+        except Exception as e:
+            logger.warning(f"_restore_renderer_settings: Could not restore lighting: {e}")
+        
         # Preserve background color
         try:
             self.plotter.background_color = 'white'
@@ -597,13 +615,6 @@ class STLViewerWidget(QWidget):
             logger.debug("_restore_renderer_settings: Renderer updated")
         except Exception as e:
             logger.debug(f"_restore_renderer_settings: Could not force render: {e}")
-        
-        # Note: Shadows are currently disabled in the codebase
-        # If needed in future, uncomment:
-        # try:
-        #     self.plotter.enable_shadows()
-        # except:
-        #     pass
     
     def _on_file_dropped(self, file_path: str):
         """Handle file dropped on overlay."""
