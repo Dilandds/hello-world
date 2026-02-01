@@ -163,6 +163,105 @@ class StepLoader:
             return None
     
     @staticmethod
+    def _setup_windows_casadi_dlls():
+        """
+        Setup Windows DLL paths for casadi (multiple strategies).
+        Returns True if setup was successful, False otherwise.
+        """
+        if sys.platform != 'win32':
+            return True  # Not Windows, no setup needed
+        
+        try:
+            import site
+            import importlib.util
+            
+            # Strategy 1: Try to find casadi in sys.modules first
+            casadi_path = None
+            try:
+                if 'casadi' in sys.modules:
+                    import casadi
+                    if hasattr(casadi, '__file__'):
+                        casadi_path = Path(casadi.__file__).parent
+                        logger.info(f"StepLoader: [Windows] casadi already in sys.modules, location: {casadi_path}")
+            except ImportError:
+                pass
+            
+            # Strategy 2: Try to find casadi via importlib
+            if casadi_path is None:
+                try:
+                    spec = importlib.util.find_spec('casadi')
+                    if spec and spec.origin:
+                        casadi_path = Path(spec.origin).parent
+                        logger.info(f"StepLoader: [Windows] Found casadi spec origin: {casadi_path}")
+                except Exception as e:
+                    logger.debug(f"StepLoader: [Windows] Could not find casadi via importlib: {e}")
+            
+            # Strategy 3: Search sys.path
+            if casadi_path is None:
+                for path_entry in sys.path:
+                    casadi_candidate = Path(path_entry) / 'casadi'
+                    if casadi_candidate.exists() and (casadi_candidate / 'casadi.py').exists():
+                        casadi_path = casadi_candidate
+                        logger.info(f"StepLoader: [Windows] Found casadi in sys.path: {casadi_path}")
+                        break
+            
+            # Strategy 4: Search in PyInstaller MEIPASS
+            if casadi_path is None and getattr(sys, 'frozen', False):
+                meipass = getattr(sys, '_MEIPASS', None)
+                if meipass:
+                    casadi_candidate = Path(meipass) / 'casadi'
+                    if casadi_candidate.exists():
+                        casadi_path = casadi_candidate
+                        logger.info(f"StepLoader: [Windows] Found casadi in MEIPASS: {casadi_path}")
+            
+            # If found, add DLL directory to search paths
+            if casadi_path and casadi_path.exists():
+                # Look for DLL files in casadi directory
+                dll_files = list(casadi_path.glob('*.dll'))
+                if dll_files:
+                    logger.info(f"StepLoader: [Windows] Found {len(dll_files)} DLL files in casadi directory")
+                    
+                    casadi_str = str(casadi_path)
+                    
+                    # Strategy A: Add to PATH environment variable
+                    current_path = os.environ.get('PATH', '')
+                    if casadi_str not in current_path:
+                        os.environ['PATH'] = casadi_str + os.pathsep + current_path
+                        logger.info(f"StepLoader: [Windows] Added casadi directory to PATH: {casadi_str}")
+                    
+                    # Strategy B: Add to DLL search directories (Python 3.8+)
+                    if hasattr(os, 'add_dll_directory'):
+                        try:
+                            os.add_dll_directory(casadi_str)
+                            logger.info(f"StepLoader: [Windows] Added casadi directory to DLL search path via os.add_dll_directory()")
+                        except Exception as e:
+                            logger.warning(f"StepLoader: [Windows] Could not add casadi to DLL search path: {e}")
+                    
+                    # Strategy C: Try to preload DLLs explicitly
+                    try:
+                        import ctypes
+                        for dll_file in dll_files[:5]:  # Try first 5 DLLs
+                            try:
+                                ctypes.CDLL(str(dll_file))
+                                logger.debug(f"StepLoader: [Windows] Preloaded DLL: {dll_file.name}")
+                            except Exception as e:
+                                logger.debug(f"StepLoader: [Windows] Could not preload {dll_file.name}: {e}")
+                    except Exception as e:
+                        logger.debug(f"StepLoader: [Windows] Could not preload DLLs: {e}")
+                    
+                    return True
+                else:
+                    logger.warning(f"StepLoader: [Windows] casadi directory found but no DLL files: {casadi_path}")
+            else:
+                logger.warning(f"StepLoader: [Windows] Could not find casadi installation directory")
+            
+            return False
+                        
+        except Exception as e:
+            logger.warning(f"StepLoader: [Windows] Error setting up casadi DLL paths: {e}", exc_info=True)
+            return False
+    
+    @staticmethod
     def load_with_cadquery(file_path):
         """
         Load STEP file using cadquery library (fallback).
@@ -179,58 +278,9 @@ class StepLoader:
                 logger.info(f"StepLoader: [Windows] sys.path before import: {len(sys.path)} entries")
                 
                 # Setup casadi DLL paths before importing cadquery
-                # cadquery depends on casadi which requires DLLs to be in the search path
-                try:
-                    import site
-                    import importlib.util
-                    
-                    # Try to find casadi package location
-                    casadi_path = None
-                    for path_entry in sys.path:
-                        casadi_candidate = Path(path_entry) / 'casadi'
-                        if casadi_candidate.exists():
-                            casadi_path = casadi_candidate
-                            logger.info(f"StepLoader: [Windows] Found casadi at: {casadi_path}")
-                            break
-                    
-                    # Also check if casadi is already imported (would have __file__)
-                    try:
-                        import casadi
-                        if hasattr(casadi, '__file__'):
-                            casadi_path = Path(casadi.__file__).parent
-                            logger.info(f"StepLoader: [Windows] casadi already in sys.modules, location: {casadi_path}")
-                    except ImportError:
-                        pass
-                    
-                    # If found, add DLL directory to search paths
-                    if casadi_path and casadi_path.exists():
-                        # Look for DLL files in casadi directory
-                        dll_files = list(casadi_path.glob('*.dll'))
-                        if dll_files:
-                            logger.info(f"StepLoader: [Windows] Found {len(dll_files)} DLL files in casadi directory")
-                            
-                            # Add to PATH environment variable
-                            casadi_str = str(casadi_path)
-                            current_path = os.environ.get('PATH', '')
-                            if casadi_str not in current_path:
-                                os.environ['PATH'] = casadi_str + os.pathsep + current_path
-                                logger.info(f"StepLoader: [Windows] Added casadi directory to PATH: {casadi_str}")
-                            
-                            # Add to DLL search directories (Python 3.8+)
-                            if hasattr(os, 'add_dll_directory'):
-                                try:
-                                    os.add_dll_directory(casadi_str)
-                                    logger.info(f"StepLoader: [Windows] Added casadi directory to DLL search path via os.add_dll_directory()")
-                                except Exception as e:
-                                    logger.warning(f"StepLoader: [Windows] Could not add casadi to DLL search path: {e}")
-                        else:
-                            logger.warning(f"StepLoader: [Windows] casadi directory found but no DLL files: {casadi_path}")
-                    else:
-                        logger.warning(f"StepLoader: [Windows] Could not find casadi installation directory")
-                        
-                except Exception as e:
-                    logger.warning(f"StepLoader: [Windows] Error setting up casadi DLL paths: {e}")
-                    logger.warning(f"StepLoader: [Windows] Will attempt cadquery import anyway")
+                dll_setup_success = StepLoader._setup_windows_casadi_dlls()
+                if not dll_setup_success:
+                    logger.warning(f"StepLoader: [Windows] DLL setup had issues, but will attempt cadquery import anyway")
             
             import cadquery as cq
             
@@ -346,38 +396,38 @@ class StepLoader:
                         if face_count == 1:
                             logger.info("StepLoader: [Windows] Processing first face")
                     
-                    face = explorer.Current()
+                    face_shape = explorer.Current()
                     
                     if sys.platform == 'win32' and face_count == 1:
-                        logger.info(f"StepLoader: [Windows] face type: {type(face)}")
+                        logger.info(f"StepLoader: [Windows] face_shape type: {type(face_shape)}")
                     
+                    # Cast TopoDS_Shape to TopoDS_Face
+                    face = TopoDS.Face_s(face_shape)
                     location = TopLoc_Location()
                     
                     if sys.platform == 'win32' and face_count == 1:
-                        logger.info("StepLoader: [Windows] Calling BRep_Tool.Triangulation()")
+                        logger.info("StepLoader: [Windows] Calling BRep_Tool.Triangulation_s()")
                     
-                    triangulation = BRep_Tool.Triangulation(face, location)
+                    triangulation = BRep_Tool.Triangulation_s(face, location)
                     
                     if sys.platform == 'win32' and face_count == 1:
                         logger.info(f"StepLoader: [Windows] triangulation result: {triangulation is not None}")
                     
                     if triangulation:
-                        # Get points
-                        nodes = triangulation.Nodes()
-                        num_nodes = nodes.Length()
-                        face_points = []
+                        # Get number of nodes
+                        num_nodes = triangulation.NbNodes()
                         
+                        # Get each node individually
                         for i in range(1, num_nodes + 1):
-                            node = nodes.Value(i)
-                            face_points.append([node.X(), node.Y(), node.Z()])
+                            node = triangulation.Node(i)
                             points_list.append([node.X(), node.Y(), node.Z()])
                         
-                        # Get triangles
-                        triangles = triangulation.Triangles()
-                        num_triangles = triangles.Length()
+                        # Get number of triangles
+                        num_triangles = triangulation.NbTriangles()
                         
+                        # Get each triangle individually
                         for i in range(1, num_triangles + 1):
-                            triangle = triangles.Value(i)
+                            triangle = triangulation.Triangle(i)
                             # Triangle indices are 1-based, convert to 0-based
                             idx1 = triangle.Value(1) - 1 + point_index
                             idx2 = triangle.Value(2) - 1 + point_index
@@ -424,7 +474,6 @@ class StepLoader:
                 
                 try:
                     import tempfile
-                    import os
                     with tempfile.NamedTemporaryFile(suffix='.stl', delete=False) as tmp:
                         tmp_path = tmp.name
                     
@@ -471,6 +520,137 @@ class StepLoader:
             return None
     
     @staticmethod
+    def load_with_ocp_direct(file_path):
+        """
+        Load STEP file using OCP (OpenCASCADE Python) directly, without cadquery.
+        This is a fallback when cadquery fails due to DLL issues.
+        
+        Args:
+            file_path (str): Path to the STEP file
+            
+        Returns:
+            pyvista.PolyData: PyVista mesh object, or None if failed
+        """
+        try:
+            logger.info(f"StepLoader: Attempting to load STEP file with OCP directly: {file_path}")
+            
+            from OCP.STEPControl import STEPControl_Reader
+            from OCP.IFSelect import IFSelect_ReturnStatus
+            from OCP.BRepMesh import BRepMesh_IncrementalMesh
+            from OCP.TopAbs import TopAbs_FACE
+            from OCP.TopExp import TopExp_Explorer
+            from OCP.BRep import BRep_Tool
+            from OCP.TopLoc import TopLoc_Location
+            from OCP.TopoDS import TopoDS
+            import numpy as np
+            
+            # Create STEP reader
+            reader = STEPControl_Reader()
+            
+            # Read the STEP file
+            status = reader.ReadFile(file_path)
+            
+            if status != IFSelect_ReturnStatus.IFSelect_RetDone:
+                logger.error(f"StepLoader: Failed to read STEP file. Status: {status}")
+                return None
+            
+            # Transfer roots (get all shapes from the file)
+            reader.TransferRoots()
+            
+            # Get the number of shapes
+            nb_shapes = reader.NbShapes()
+            if nb_shapes == 0:
+                logger.error("StepLoader: No shapes found in STEP file")
+                return None
+            
+            logger.info(f"StepLoader: Found {nb_shapes} shape(s) in STEP file")
+            
+            # Collect all points and faces from all shapes
+            all_points = []
+            all_faces = []
+            point_offset = 0
+            
+            # Process each shape
+            for i in range(1, nb_shapes + 1):
+                shape = reader.Shape(i)
+                
+                if shape.IsNull():
+                    logger.warning(f"StepLoader: Shape {i} is null, skipping")
+                    continue
+                
+                # Mesh the shape
+                mesh_tool = BRepMesh_IncrementalMesh(shape, 0.1)  # 0.1 is deflection
+                mesh_tool.Perform()
+                
+                # Extract triangles from faces
+                points_list = []
+                faces_list = []
+                point_index = 0
+                
+                explorer = TopExp_Explorer(shape, TopAbs_FACE)
+                while explorer.More():
+                    face_shape = explorer.Current()
+                    face = TopoDS.Face_s(face_shape)  # Cast TopoDS_Shape to TopoDS_Face
+                    location = TopLoc_Location()
+                    triangulation = BRep_Tool.Triangulation_s(face, location)
+                    
+                    if triangulation:
+                        # Get number of nodes
+                        num_nodes = triangulation.NbNodes()
+                        
+                        # Get each node individually
+                        for j in range(1, num_nodes + 1):
+                            node = triangulation.Node(j)
+                            points_list.append([node.X(), node.Y(), node.Z()])
+                        
+                        # Get number of triangles
+                        num_triangles = triangulation.NbTriangles()
+                        
+                        # Get each triangle individually
+                        for j in range(1, num_triangles + 1):
+                            triangle = triangulation.Triangle(j)
+                            # Triangle indices are 1-based, convert to 0-based
+                            idx1 = triangle.Value(1) - 1 + point_index
+                            idx2 = triangle.Value(2) - 1 + point_index
+                            idx3 = triangle.Value(3) - 1 + point_index
+                            faces_list.append([3, idx1, idx2, idx3])
+                        
+                        point_index += num_nodes
+                    
+                    explorer.Next()
+                
+                if len(points_list) > 0:
+                    # Add points
+                    all_points.extend(points_list)
+                    # Add faces with global point offset
+                    for face in faces_list:
+                        # Create new face array with offset indices
+                        offset_face = [face[0], face[1] + point_offset, face[2] + point_offset, face[3] + point_offset]
+                        all_faces.append(offset_face)
+                    point_offset += len(points_list)
+                    logger.debug(f"StepLoader: Extracted {len(points_list)} points, {len(faces_list)} faces from shape {i}")
+            
+            if len(all_points) == 0:
+                logger.error("StepLoader: No triangles extracted from STEP file")
+                return None
+            
+            # Create PyVista mesh
+            points_array = np.array(all_points, dtype=np.float64)
+            faces_array = np.array(all_faces, dtype=np.int32)
+            
+            pv_mesh = pv.PolyData(points_array, faces_array)
+            
+            logger.info(f"StepLoader: Successfully loaded STEP file with OCP directly. Points: {len(points_array)}, Faces: {len(faces_array)}")
+            return pv_mesh
+            
+        except ImportError as e:
+            logger.error(f"StepLoader: OCP library not available: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"StepLoader: Failed to load with OCP directly: {e}", exc_info=True)
+            return None
+    
+    @staticmethod
     def load_step(file_path):
         """
         Load STEP file using meshio first, then cadquery as fallback.
@@ -508,25 +688,44 @@ class StepLoader:
             logger.info(f"StepLoader: File size: {file_size} bytes")
             logger.info(f"StepLoader: File readable: {os.access(file_path, os.R_OK)}")
         
-        # Try meshio first (lighter, faster)
+        # Try multiple fallback approaches in order:
+        # 1. meshio (lightweight, but may not support STEP)
+        # 2. cadquery (requires casadi DLLs on Windows)
+        # 3. OCP directly (bypasses cadquery, avoids casadi dependency)
+        
+        # Try meshio first (lighter, faster, but may not support STEP)
+        logger.info("StepLoader: Attempting to load with meshio...")
         mesh = StepLoader.load_with_meshio(file_path)
         if mesh is not None:
+            logger.info("StepLoader: Successfully loaded with meshio")
             return mesh
         
-        # Fallback to cadquery
+        # Fallback to cadquery (may fail on Windows due to DLL issues)
         logger.info("StepLoader: meshio failed, trying cadquery fallback...")
         mesh = StepLoader.load_with_cadquery(file_path)
         if mesh is not None:
+            logger.info("StepLoader: Successfully loaded with cadquery")
             return mesh
         
-        # Both methods failed
+        # Fallback to OCP directly (bypasses cadquery, avoids casadi dependency)
+        logger.info("StepLoader: cadquery failed, trying OCP direct fallback...")
+        mesh = StepLoader.load_with_ocp_direct(file_path)
+        if mesh is not None:
+            logger.info("StepLoader: Successfully loaded with OCP directly")
+            return mesh
+        
+        # All methods failed
         error_msg = (
             f"Failed to load STEP file: {file_path}\n\n"
-            "Both meshio and cadquery failed to load the file.\n"
+            "All loading methods failed:\n"
+            "1. meshio - does not support STEP format\n"
+            "2. cadquery - failed (possibly due to DLL loading issues on Windows)\n"
+            "3. OCP direct - failed\n\n"
             "Please ensure:\n"
             "1. The file is a valid STEP format\n"
-            "2. meshio and cadquery are properly installed\n"
-            "3. The file is not corrupted"
+            "2. OCP/cadquery libraries are properly installed\n"
+            "3. The file is not corrupted\n"
+            "4. On Windows: casadi DLLs are accessible"
         )
         logger.error(f"StepLoader: {error_msg}")
         raise ValueError(error_msg)
