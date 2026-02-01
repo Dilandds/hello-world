@@ -168,6 +168,19 @@ class STLViewerWindow(QMainWindow):
         self.toolbar.view_top.connect(self._view_top)
         self.toolbar.toggle_fullscreen.connect(self._toggle_fullscreen)
         self.toolbar.load_file.connect(self.upload_stl_file)
+        self.toolbar.clear_model.connect(self._clear_current_model)
+    
+    def _clear_current_model(self):
+        """Clear the current model from the viewer."""
+        logger.info("_clear_current_model: Clearing current model...")
+        if hasattr(self.viewer_widget, 'clear_viewer'):
+            self.viewer_widget.clear_viewer()
+            # Update toolbar state
+            self.toolbar.set_stl_loaded(False)
+            # Reset window title
+            self.setWindowTitle("ECTOFORM")
+            # Reset toolbar load button tooltip
+            self.toolbar.set_loaded_filename(None)
     
     def _connect_viewer_signals(self):
         """Connect viewer widget signals for drag-and-drop."""

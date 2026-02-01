@@ -283,26 +283,22 @@ class STLViewerWidget(QWidget):
                 try:
                     self.plotter.remove_actor(self.current_actor)
                     logger.info("load_stl: Previous mesh actor removed")
+                    # Ensure renderer settings are preserved after removing actor
+                    self._restore_renderer_settings()
                 except Exception as e:
                     logger.warning(f"load_stl: Could not remove actor, using clear: {e}")
                     # Fallback to clear if remove_actor fails
                     self.plotter.clear()
                     self.plotter.add_axes()
-                    # Re-enable settings after clear
-                    try:
-                        self.plotter.enable_anti_aliasing()
-                    except:
-                        pass
-                    # Shadows disabled to reduce excessive shadowing
-                    # try:
-                    #     self.plotter.enable_shadows()
-                    # except:
-                    #     pass
+                    # Restore renderer settings after clear
+                    self._restore_renderer_settings()
             elif self.current_mesh is not None:
                 # If we have a mesh but no actor reference, use clear
                 logger.info("load_stl: Clearing previous mesh...")
                 self.plotter.clear()
                 self.plotter.add_axes()
+                # Restore renderer settings after clear
+                self._restore_renderer_settings()
             
             # Detect file format and load accordingly
             file_ext = file_path.lower()
@@ -498,6 +494,9 @@ class STLViewerWidget(QWidget):
                 logger.warning(f"load_stl: Could not compute normals: {e}, continuing anyway")
             
             logger.info("load_stl: Adding mesh to plotter...")
+            # Ensure renderer settings are active before adding mesh (preserves quality when uploading)
+            self._restore_renderer_settings()
+            
             # Add mesh to plotter with consistent rendering parameters
             # Store the actor reference so we can remove it later
             # Use the processed mesh for rendering (with normals and triangulation if successful)
@@ -512,6 +511,10 @@ class STLViewerWidget(QWidget):
                 specular_power=20  # Reduced for softer specular
             )
             logger.info("load_stl: Mesh added to plotter")
+            
+            # Ensure renderer settings are still active after adding mesh
+            # This preserves visual quality when uploading files multiple times
+            self._restore_renderer_settings()
             
             # Ensure axes are present (only add on first load)
             if is_first_load:
@@ -558,12 +561,49 @@ class STLViewerWidget(QWidget):
                 pass
         self.plotter.clear()
         self.plotter.add_axes()
+        
+        # Restore renderer settings after clearing
+        self._restore_renderer_settings()
+        
         self.current_mesh = None
         self.current_actor = None
         self._model_loaded = False
         # Show overlay again when cleared
         self._show_overlay(True)
         logger.info("clear_viewer: Viewer cleared")
+    
+    def _restore_renderer_settings(self):
+        """Restore renderer settings after clearing to maintain visual quality."""
+        if self.plotter is None:
+            return
+        
+        try:
+            # Re-enable anti-aliasing for sharpness
+            self.plotter.enable_anti_aliasing()
+            logger.info("_restore_renderer_settings: Anti-aliasing restored")
+        except Exception as e:
+            logger.warning(f"_restore_renderer_settings: Could not restore anti-aliasing: {e}")
+        
+        # Preserve background color
+        try:
+            self.plotter.background_color = 'white'
+            logger.debug("_restore_renderer_settings: Background color restored")
+        except Exception as e:
+            logger.debug(f"_restore_renderer_settings: Could not restore background color: {e}")
+        
+        # Force renderer update to ensure settings take effect
+        try:
+            self.plotter.render()
+            logger.debug("_restore_renderer_settings: Renderer updated")
+        except Exception as e:
+            logger.debug(f"_restore_renderer_settings: Could not force render: {e}")
+        
+        # Note: Shadows are currently disabled in the codebase
+        # If needed in future, uncomment:
+        # try:
+        #     self.plotter.enable_shadows()
+        # except:
+        #     pass
     
     def _on_file_dropped(self, file_path: str):
         """Handle file dropped on overlay."""

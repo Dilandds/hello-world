@@ -181,6 +181,7 @@ class ViewControlsToolbar(QWidget):
     view_top = pyqtSignal()
     toggle_fullscreen = pyqtSignal()
     load_file = pyqtSignal()
+    clear_model = pyqtSignal()
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -278,6 +279,13 @@ class ViewControlsToolbar(QWidget):
         self.load_btn.setFixedWidth(44)
         content_layout.addWidget(self.load_btn)
         
+        # Reset button - icon only to clear current model
+        self.reset_model_btn = ToolbarButton("↻", "", "Clear current model from view")
+        self.reset_model_btn.clicked.connect(self._on_reset_model_clicked)
+        self.reset_model_btn.setFixedWidth(44)
+        self.reset_model_btn.setEnabled(False)  # Disabled until a model is loaded
+        content_layout.addWidget(self.reset_model_btn)
+        
         # Apply tooltip styling for black text
         self._apply_tooltip_style()
         
@@ -336,6 +344,7 @@ class ViewControlsToolbar(QWidget):
         self.front_btn.setEnabled(loaded)
         self.side_btn.setEnabled(loaded)
         self.top_btn.setEnabled(loaded)
+        self.reset_model_btn.setEnabled(loaded)  # Enable reset model button when model is loaded
     
     def _on_grid_clicked(self):
         """Handle grid toggle."""
@@ -399,6 +408,11 @@ class ViewControlsToolbar(QWidget):
         """Handle load file."""
         self.load_file.emit()
     
+
+    def _on_reset_model_clicked(self):
+        """Handle reset model (clear current model from view)."""
+        self.clear_model.emit()
+
     def reset_fullscreen_state(self):
         """Reset fullscreen button state (called when exiting fullscreen externally)."""
         self.is_fullscreen = False
@@ -428,7 +442,6 @@ class ViewControlsToolbar(QWidget):
                 font-size: 11px;
             }
         """
-
         existing = app.styleSheet() or ""
         if "QToolTip" not in existing:
             app.setStyleSheet(existing + "\n" + tooltip_style)
