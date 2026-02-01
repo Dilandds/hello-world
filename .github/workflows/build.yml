@@ -42,7 +42,7 @@ jobs:
     
     - name: Verify .app bundle exists
       run: |
-        if [ ! -d "dist/STL 3D Viewer.app" ]; then
+        if [ ! -d "dist/ECTOFORM.app" ]; then
           echo "Error: .app bundle not found"
           exit 1
         fi
@@ -50,7 +50,7 @@ jobs:
     
     - name: Verify executable
       run: |
-        EXE_PATH="dist/STL 3D Viewer.app/Contents/MacOS/STL 3D Viewer"
+        EXE_PATH="dist/ECTOFORM.app/Contents/MacOS/ECTOFORM"
         if [ ! -f "$EXE_PATH" ]; then
           echo "Error: Executable not found"
           exit 1
@@ -61,26 +61,26 @@ jobs:
     - name: Check app structure
       run: |
         echo "App bundle contents:"
-        ls -la "dist/STL 3D Viewer.app/Contents/"
+        ls -la "dist/ECTOFORM.app/Contents/"
         echo ""
         echo "Resources:"
-        ls -la "dist/STL 3D Viewer.app/Contents/Resources/" 2>/dev/null || echo "No Resources folder"
+        ls -la "dist/ECTOFORM.app/Contents/Resources/" 2>/dev/null || echo "No Resources folder"
         echo ""
         echo "Bundled data files:"
-        find "dist/STL 3D Viewer.app" -name "*.qss" -o -name "splash.png" -o -name "icon.icns" | head -10
+        find "dist/ECTOFORM.app" -name "*.qss" -o -name "splash.png" -o -name "icon.icns" | head -10
     
     - name: Test app launch (headless)
       run: |
         # Try to run the app in headless mode to check for immediate crashes
         # This will fail if there are missing dependencies
-        timeout 10 "dist/STL 3D Viewer.app/Contents/MacOS/STL 3D Viewer" --version 2>&1 || echo "App launch test completed"
+        timeout 10 "dist/ECTOFORM.app/Contents/MacOS/ECTOFORM" --version 2>&1 || echo "App launch test completed"
         echo "✓ App executable runs (may exit immediately without GUI)"
     
     - name: Check DMG file
       run: |
-        if [ -f "STL_Viewer-1.0.0-macOS.dmg" ]; then
+        if [ -f "ECTOFORM-1.0.0-macOS.dmg" ]; then
           echo "✓ DMG file created"
-          ls -lh "STL_Viewer-1.0.0-macOS.dmg"
+          ls -lh "ECTOFORM-1.0.0-macOS.dmg"
         else
           echo "Warning: DMG file not found"
         fi
@@ -88,18 +88,18 @@ jobs:
     - name: Upload .app bundle as artifact
       uses: actions/upload-artifact@v4
       with:
-        name: STL-Viewer-macOS-${{ matrix.os }}
+        name: ECTOFORM-macOS-${{ matrix.os }}
         path: |
-          dist/STL 3D Viewer.app
+          dist/ECTOFORM.app
         retention-days: 30
     
     - name: Upload DMG as artifact
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: STL-Viewer-DMG-${{ matrix.os }}
+        name: ECTOFORM-DMG-${{ matrix.os }}
         path: |
-          STL_Viewer-1.0.0-macOS.dmg
+          ECTOFORM-1.0.0-macOS.dmg
         retention-days: 30
     
     - name: Build summary
@@ -135,7 +135,7 @@ jobs:
     
     - name: Verify EXE exists
       run: |
-        $exePath = "dist\STL 3D Viewer.exe"
+        $exePath = "dist\ECTOFORM.exe"
         if (-not (Test-Path $exePath)) {
           Write-Host "Error: EXE not found at $exePath" -ForegroundColor Red
           exit 1
@@ -146,14 +146,14 @@ jobs:
     
     - name: Verify executable
       run: |
-        $exePath = "dist\STL 3D Viewer.exe"
+        $exePath = "dist\ECTOFORM.exe"
         Get-Item $exePath | Select-Object Name, Length, LastWriteTime
         Write-Host "✓ Executable verified"
     
     - name: Check bundled files
       run: |
         Write-Host "Checking for bundled assets..."
-        $exePath = "dist\STL 3D Viewer.exe"
+        $exePath = "dist\ECTOFORM.exe"
         if (Test-Path $exePath) {
           Write-Host "✓ EXE file exists"
         }
@@ -162,7 +162,7 @@ jobs:
     - name: Test EXE (basic)
       run: |
         # Try to run EXE with --version or similar (may not work, but tests basic execution)
-        $exePath = "dist\STL 3D Viewer.exe"
+        $exePath = "dist\ECTOFORM.exe"
         Write-Host "EXE location: $exePath"
         Write-Host "File info:"
         Get-Item $exePath | Format-List
@@ -171,9 +171,9 @@ jobs:
     - name: Upload EXE as artifact
       uses: actions/upload-artifact@v4
       with:
-        name: STL-Viewer-Windows
+        name: ECTOFORM-Windows
         path: |
-          dist/STL 3D Viewer.exe
+          dist/ECTOFORM.exe
         retention-days: 30
     
     - name: Build summary
