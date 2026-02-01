@@ -57,10 +57,7 @@ class STLViewerWidget(QWidget):
         self.viewer_layout = QVBoxLayout(self.viewer_container)
         self.viewer_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Create placeholder label
-        self.placeholder = QLabel("Initializing 3D viewer...")
-        self.placeholder.setAlignment(Qt.AlignCenter)
-        self.viewer_layout.addWidget(self.placeholder)
+        # No placeholder - drop overlay handles empty state
         
         self.layout.addWidget(self.viewer_container)
         
@@ -143,15 +140,7 @@ class STLViewerWidget(QWidget):
             logger.info("STLViewerWidget: QtInteractor created successfully")
             safe_flush(sys.stderr)
             
-            # Process events after creation
-            QApplication.processEvents()
-            
             # Process events after QtInteractor creation
-            QApplication.processEvents()
-            
-            # Remove placeholder
-            self.viewer_layout.removeWidget(self.placeholder)
-            self.placeholder.deleteLater()
             QApplication.processEvents()
             
             # Add plotter to viewer container layout
@@ -241,9 +230,6 @@ class STLViewerWidget(QWidget):
         except Exception as e:
             debug_print(f"STLViewerWidget: ERROR during plotter initialization: {e}")
             logger.error(f"STLViewerWidget: Error during plotter initialization: {e}", exc_info=True)
-            # Update placeholder to show error
-            if self.placeholder:
-                self.placeholder.setText(f"Error initializing 3D viewer: {str(e)}")
             import traceback
             traceback.print_exc()
             # Don't raise - allow the app to continue
