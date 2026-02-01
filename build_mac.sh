@@ -4,7 +4,7 @@
 
 set -e  # Exit on error
 
-echo "Building STL 3D Viewer for macOS..."
+echo "Building ECTOFORM for macOS..."
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -21,6 +21,18 @@ if ! command -v pyinstaller &> /dev/null; then
     pip install pyinstaller>=6.0.0
 fi
 
+# Generate icon files from logo.png if they don't exist
+echo "Generating icon files from logo.png..."
+if [ -f "assets/logo.png" ]; then
+    if [ ! -f "assets/icon.icns" ] || [ ! -f "assets/icon.ico" ]; then
+        python3 scripts/convert_logo_to_icons.py
+    else
+        echo "Icon files already exist, skipping generation."
+    fi
+else
+    echo -e "${YELLOW}Warning: assets/logo.png not found. Icon files may not be available.${NC}"
+fi
+
 # Clean previous builds
 echo "Cleaning previous builds..."
 rm -rf build dist *.dmg
@@ -30,7 +42,7 @@ echo "Running PyInstaller..."
 pyinstaller stl_viewer_mac.spec --clean --noconfirm
 
 # Check if .app was created
-APP_PATH="dist/STL 3D Viewer.app"
+APP_PATH="dist/ECTOFORM.app"
 if [ ! -d "$APP_PATH" ]; then
     echo "Error: .app bundle not found at $APP_PATH"
     exit 1
@@ -54,7 +66,7 @@ fi
 
 # Create DMG
 echo "Creating DMG installer..."
-DMG_NAME="STL_Viewer-1.0.0-macOS.dmg"
+DMG_NAME="ECTOFORM-1.0.0-macOS.dmg"
 
 # Create a temporary folder for DMG contents
 DMG_TEMP="dist/dmg_temp"
@@ -70,7 +82,7 @@ fi
 cp -R "$APP_PATH" "$DMG_TEMP/"
 
 # Verify the app was copied
-if [ ! -d "$DMG_TEMP/STL 3D Viewer.app" ]; then
+if [ ! -d "$DMG_TEMP/ECTOFORM.app" ]; then
     echo "Error: Failed to copy .app bundle to temp folder"
     exit 1
 fi
@@ -92,25 +104,25 @@ DMG_SCRIPT_ERROR=""
 # First attempt: with full customization
 if [ -f "$ICON_FILE" ]; then
     create-dmg \
-        --volname "STL 3D Viewer" \
+        --volname "ECTOFORM" \
         --volicon "$ICON_FILE" \
         --window-pos 200 120 \
         --window-size 600 400 \
         --icon-size 100 \
-        --icon "STL 3D Viewer.app" 175 190 \
-        --hide-extension "STL 3D Viewer.app" \
+        --icon "ECTOFORM.app" 175 190 \
+        --hide-extension "ECTOFORM.app" \
         --app-drop-link 425 190 \
         --hdiutil-quiet \
         "$ABS_DMG_NAME" \
         "$ABS_DMG_TEMP" 2>&1 | tee /tmp/create-dmg-output.log || DMG_ERROR=$?
 else
     create-dmg \
-        --volname "STL 3D Viewer" \
+        --volname "ECTOFORM" \
         --window-pos 200 120 \
         --window-size 600 400 \
         --icon-size 100 \
-        --icon "STL 3D Viewer.app" 175 190 \
-        --hide-extension "STL 3D Viewer.app" \
+        --icon "ECTOFORM.app" 175 190 \
+        --hide-extension "ECTOFORM.app" \
         --app-drop-link 425 190 \
         --hdiutil-quiet \
         "$ABS_DMG_NAME" \
@@ -130,14 +142,14 @@ if [ "$DMG_ERROR" -ne 0 ] && [ ! -f "$ABS_DMG_NAME" ] && [ -z "$TEMP_DMG_EXISTS"
     echo -e "${YELLOW}Retrying with simpler DMG creation (without window customization)...${NC}"
     if [ -f "$ICON_FILE" ]; then
         create-dmg \
-            --volname "STL 3D Viewer" \
+            --volname "ECTOFORM" \
             --volicon "$ICON_FILE" \
             --hdiutil-quiet \
             "$ABS_DMG_NAME" \
             "$ABS_DMG_TEMP" 2>&1 || DMG_ERROR=$?
     else
         create-dmg \
-            --volname "STL 3D Viewer" \
+            --volname "ECTOFORM" \
             --hdiutil-quiet \
             "$ABS_DMG_NAME" \
             "$ABS_DMG_TEMP" 2>&1 || DMG_ERROR=$?

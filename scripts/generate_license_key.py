@@ -33,7 +33,7 @@ def generate_license_key(prefix: str = "STL") -> str:
 def main():
     """Main function for command-line usage."""
     parser = argparse.ArgumentParser(
-        description="Generate license keys for STL 3D Viewer",
+        description="Generate license keys for ECTOFORM",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

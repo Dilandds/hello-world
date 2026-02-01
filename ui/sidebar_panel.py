@@ -1,5 +1,5 @@
 """
-Sidebar panel widget for the STL Viewer application.
+Sidebar panel widget for the ECTOFORM application.
 """
 import logging
 import os
@@ -112,7 +112,7 @@ class SidebarPanel(QWidget):
         layout.setContentsMargins(10, 10, 20, 10)
         
         # Title label
-        title_label = QLabel("STL Viewer")
+        title_label = QLabel("ECTOFORM")
         title_label.setObjectName("titleLabel")
         title_font = QFont("Inter", 16)
         title_font.setBold(True)

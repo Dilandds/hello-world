@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller spec file for STL 3D Viewer macOS build.
+PyInstaller spec file for ECTOFORM macOS build.
 """
 
 import sys
@@ -127,7 +127,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='STL 3D Viewer',
+    name='ECTOFORM',
     debug=False,
     bootloader_ignore_signals=False,
     strip=True,  # Enable stripping for size reduction
@@ -148,7 +148,7 @@ coll = COLLECT(
     strip=True,  # Enable stripping for size reduction
     upx=True,
     upx_exclude=[],
-    name='STL 3D Viewer',
+    name='ECTOFORM',
 )
 
 # Debug icon for BUNDLE
@@ -161,9 +161,9 @@ else:
 
 app = BUNDLE(
     coll,
-    name='STL 3D Viewer.app',
+    name='ECTOFORM.app',
     icon=bundle_icon,
-    bundle_identifier='com.jewelleryviewer.stlviewer',
+        bundle_identifier='com.ectoform.app',
     info_plist={
         'NSPrincipalClass': 'NSApplication',
         'NSHighResolutionCapable': 'True',

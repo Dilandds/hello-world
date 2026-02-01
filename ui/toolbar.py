@@ -193,7 +193,7 @@ class ViewControlsToolbar(QWidget):
         self.stl_loaded = False
         
         # Load saved state
-        self.settings = QSettings("STLViewer", "Toolbar")
+        self.settings = QSettings("ECTOFORM", "Toolbar")
         self.is_expanded = self.settings.value("toolbar_expanded", True, type=bool)
         
         self.init_ui()
@@ -427,8 +427,6 @@ class ViewControlsToolbar(QWidget):
                 border-radius: 4px;
                 font-size: 11px;
             }
-        """
-
-        existing = app.styleSheet() or ""
+        """        existing = app.styleSheet() or ""
         if "QToolTip" not in existing:
             app.setStyleSheet(existing + "\n" + tooltip_style)

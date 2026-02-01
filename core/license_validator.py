@@ -28,11 +28,11 @@ CACHE_EXPIRY_DAYS = 7
 def get_config_directory() -> Path:
     """Get the configuration directory for storing license data."""
     if sys.platform == "darwin":  # macOS
-        config_dir = Path.home() / "Library" / "Application Support" / "STL3DViewer"
+        config_dir = Path.home() / "Library" / "Application Support" / "ECTOFORM"
     elif sys.platform == "win32":  # Windows
-        config_dir = Path.home() / "AppData" / "Local" / "STL3DViewer"
+        config_dir = Path.home() / "AppData" / "Local" / "ECTOFORM"
     else:  # Linux
-        config_dir = Path.home() / ".config" / "stl-3d-viewer"
+        config_dir = Path.home() / ".config" / "ectoform"
     
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir

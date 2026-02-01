@@ -3,7 +3,7 @@
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "Building STL 3D Viewer for Windows..." -ForegroundColor Cyan
+Write-Host "Building ECTOFORM for Windows..." -ForegroundColor Cyan
 
 # Get script directory
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -21,6 +21,23 @@ if ($null -eq $pyinstallerCmd) {
 }
 else {
     Write-Host "PyInstaller found" -ForegroundColor Green
+}
+
+# Generate icon files from logo.png if they don't exist
+Write-Host "Generating icon files from logo.png..." -ForegroundColor Cyan
+if (Test-Path "assets\logo.png") {
+    if (-not (Test-Path "assets\icon.ico") -or -not (Test-Path "assets\icon.icns")) {
+        python scripts\convert_logo_to_icons.py
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Warning: Icon generation failed, but continuing build..." -ForegroundColor Yellow
+        }
+    }
+    else {
+        Write-Host "Icon files already exist, skipping generation." -ForegroundColor Green
+    }
+}
+else {
+    Write-Host "Warning: assets\logo.png not found. Icon files may not be available." -ForegroundColor Yellow
 }
 
 # Clean previous builds
@@ -42,7 +59,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Check if EXE was created
-$ExePath = "dist\STL 3D Viewer.exe"
+$ExePath = "dist\ECTOFORM.exe"
 if (-not (Test-Path $ExePath)) {
     Write-Host "Error: EXE not found at $ExePath" -ForegroundColor Red
     exit 1

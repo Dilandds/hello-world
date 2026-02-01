@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller spec file for STL 3D Viewer Windows build.
+PyInstaller spec file for ECTOFORM Windows build.
 """
 
 import sys
@@ -129,7 +129,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='STL 3D Viewer',
+    name='ECTOFORM',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,  # Disable stripping to prevent DLL loading issues

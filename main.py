@@ -1,5 +1,5 @@
 """
-Main entry point for the STL 3D Viewer application.
+Main entry point for the ECTOFORM application.
 """
 import sys
 import logging
@@ -39,7 +39,7 @@ def safe_flush(stream):
 
 # Print immediately to stdout (before Qt might interfere)
 print("=" * 50, file=sys.stderr)
-print("STL Viewer: Starting application...", file=sys.stderr)
+print("ECTOFORM: Starting application...", file=sys.stderr)
 print(f"Log file: {log_file}", file=sys.stderr)
 print("=" * 50, file=sys.stderr)
 safe_flush(sys.stderr)
@@ -54,14 +54,14 @@ from ui.styles import get_global_stylesheet
 
 
 def main():
-    """Initialize and run the STL viewer application."""
+    """Initialize and run the ECTOFORM application."""
     print("=" * 50, file=sys.stderr)
-    print("Starting STL 3D Viewer Application", file=sys.stderr)
+    print("Starting ECTOFORM Application", file=sys.stderr)
     print("=" * 50, file=sys.stderr)
     safe_flush(sys.stderr)
     
     logger.info("=" * 50)
-    logger.info("Starting STL 3D Viewer Application")
+    logger.info("Starting ECTOFORM Application")
     logger.info("=" * 50)
     
     try:
@@ -82,8 +82,8 @@ def main():
         print("Step 2: Setting application properties...", file=sys.stderr)
         safe_flush(sys.stderr)
         logger.info("Step 2: Setting application properties...")
-        app.setApplicationName("STL 3D Viewer")
-        app.setOrganizationName("Jewellery Viewer")
+        app.setApplicationName("ECTOFORM")
+        app.setOrganizationName("ECTOFORM")
         print("✓ Application properties set", file=sys.stderr)
         safe_flush(sys.stderr)
         logger.info("✓ Application properties set")
@@ -130,7 +130,7 @@ def main():
             }
         """)
         
-        splash.showMessage("Loading STL 3D Viewer...", 
+        splash.showMessage("Loading ECTOFORM...", 
                           QtCore.AlignCenter | QtCore.AlignBottom, 
                           QColor("#5294E2"))
         splash.show()

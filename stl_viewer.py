@@ -1,5 +1,5 @@
 """
-Main STL Viewer Window with minimalistic UI.
+Main ECTOFORM Window with minimalistic UI.
 """
 import sys
 import logging
@@ -59,7 +59,7 @@ class STLViewerWindow(QMainWindow):
         logger.info("init_ui: Starting UI initialization...")
         
         logger.info("init_ui: Setting window title and size...")
-        self.setWindowTitle("STL 3D Viewer")
+        self.setWindowTitle("ECTOFORM")
         self.setMinimumSize(1200, 800)
         self.resize(1200, 800)
         
@@ -215,7 +215,7 @@ class STLViewerWindow(QMainWindow):
         else:
             # Update window title with filename
             filename = Path(file_path).name
-            self.setWindowTitle(f"STL 3D Viewer - {filename}")
+            self.setWindowTitle(f"ECTOFORM - {filename}")
             # Update toolbar load button to show filename
             self.toolbar.set_loaded_filename(filename)
             # Enable toolbar controls
@@ -363,7 +363,7 @@ class STLViewerWindow(QMainWindow):
                 logger.info(f"upload_stl_file: STL file loaded successfully: {file_path}")
                 # Update window title with filename
                 filename = Path(file_path).name
-                self.setWindowTitle(f"STL 3D Viewer - {filename}")
+                self.setWindowTitle(f"ECTOFORM - {filename}")
                 # Update toolbar load button to show filename
                 self.toolbar.set_loaded_filename(filename)
                 # Enable toolbar controls

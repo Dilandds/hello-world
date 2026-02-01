@@ -94,7 +94,7 @@ class LicenseDialog(QDialog):
         layout.setContentsMargins(30, 30, 30, 30)
         
         # Title
-        title_label = QLabel("STL 3D Viewer")
+        title_label = QLabel("ECTOFORM")
         title_font = QFont()
         title_font.setPointSize(16)
         title_font.setBold(True)

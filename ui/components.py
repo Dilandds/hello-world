@@ -1,5 +1,5 @@
 """
-Reusable UI components for the STL Viewer application.
+Reusable UI components for the ECTOFORM application.
 """
 from PyQt5.QtWidgets import (
     QFrame, QLabel, QHBoxLayout, QVBoxLayout,

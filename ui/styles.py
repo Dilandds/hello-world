@@ -1,5 +1,5 @@
 """
-Centralized styling and theme definitions for the STL Viewer application.
+Centralized styling and theme definitions for the ECTOFORM application.
 """
 
 
