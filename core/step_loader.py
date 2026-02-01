@@ -94,8 +94,10 @@ class StepLoader:
             
             if sys.platform == 'win32':
                 logger.info(f"StepLoader: [Windows] Calling meshio.read() with file: {file_path}")
+                logger.info(f"StepLoader: [Windows] Explicitly specifying file_format='step' to avoid auto-detection issues")
             
-            meshio_mesh = meshio.read(file_path)
+            # Explicitly specify format to avoid auto-detection issues with .stp/.STEP extensions
+            meshio_mesh = meshio.read(file_path, file_format='step')
             
             if sys.platform == 'win32':
                 logger.info("StepLoader: [Windows] meshio.read() completed successfully")
@@ -175,6 +177,60 @@ class StepLoader:
             if sys.platform == 'win32':
                 logger.info("StepLoader: [Windows] Before cadquery import")
                 logger.info(f"StepLoader: [Windows] sys.path before import: {len(sys.path)} entries")
+                
+                # Setup casadi DLL paths before importing cadquery
+                # cadquery depends on casadi which requires DLLs to be in the search path
+                try:
+                    import site
+                    import importlib.util
+                    
+                    # Try to find casadi package location
+                    casadi_path = None
+                    for path_entry in sys.path:
+                        casadi_candidate = Path(path_entry) / 'casadi'
+                        if casadi_candidate.exists():
+                            casadi_path = casadi_candidate
+                            logger.info(f"StepLoader: [Windows] Found casadi at: {casadi_path}")
+                            break
+                    
+                    # Also check if casadi is already imported (would have __file__)
+                    try:
+                        import casadi
+                        if hasattr(casadi, '__file__'):
+                            casadi_path = Path(casadi.__file__).parent
+                            logger.info(f"StepLoader: [Windows] casadi already in sys.modules, location: {casadi_path}")
+                    except ImportError:
+                        pass
+                    
+                    # If found, add DLL directory to search paths
+                    if casadi_path and casadi_path.exists():
+                        # Look for DLL files in casadi directory
+                        dll_files = list(casadi_path.glob('*.dll'))
+                        if dll_files:
+                            logger.info(f"StepLoader: [Windows] Found {len(dll_files)} DLL files in casadi directory")
+                            
+                            # Add to PATH environment variable
+                            casadi_str = str(casadi_path)
+                            current_path = os.environ.get('PATH', '')
+                            if casadi_str not in current_path:
+                                os.environ['PATH'] = casadi_str + os.pathsep + current_path
+                                logger.info(f"StepLoader: [Windows] Added casadi directory to PATH: {casadi_str}")
+                            
+                            # Add to DLL search directories (Python 3.8+)
+                            if hasattr(os, 'add_dll_directory'):
+                                try:
+                                    os.add_dll_directory(casadi_str)
+                                    logger.info(f"StepLoader: [Windows] Added casadi directory to DLL search path via os.add_dll_directory()")
+                                except Exception as e:
+                                    logger.warning(f"StepLoader: [Windows] Could not add casadi to DLL search path: {e}")
+                        else:
+                            logger.warning(f"StepLoader: [Windows] casadi directory found but no DLL files: {casadi_path}")
+                    else:
+                        logger.warning(f"StepLoader: [Windows] Could not find casadi installation directory")
+                        
+                except Exception as e:
+                    logger.warning(f"StepLoader: [Windows] Error setting up casadi DLL paths: {e}")
+                    logger.warning(f"StepLoader: [Windows] Will attempt cadquery import anyway")
             
             import cadquery as cq
             

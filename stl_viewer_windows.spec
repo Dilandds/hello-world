@@ -43,10 +43,26 @@ for src_path, dst_path in splash_image_paths:
 
 print(f"[PyInstaller] Final datas list has {len(datas)} items")
 
+# Collect casadi DLLs for Windows
+binaries_list = []
+try:
+    import site
+    import casadi
+    casadi_path = Path(casadi.__file__).parent if hasattr(casadi, '__file__') else None
+    if casadi_path and casadi_path.exists():
+        # Collect all DLL files from casadi directory
+        dll_files = list(casadi_path.glob('*.dll'))
+        for dll_file in dll_files:
+            binaries_list.append((str(dll_file), 'casadi'))
+        print(f"[PyInstaller] Found {len(dll_files)} casadi DLL files to bundle")
+except Exception as e:
+    print(f"[PyInstaller] Warning: Could not collect casadi DLLs: {e}")
+    print("[PyInstaller] casadi DLLs may need to be manually added")
+
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[],
+    binaries=binaries_list,
     datas=datas,
     hiddenimports=[
         # PyQt5 modules
@@ -73,6 +89,10 @@ a = Analysis(
         # Requests for license validation
         'requests',
         'urllib3',
+        # cadquery and dependencies
+        'cadquery',
+        'casadi',
+        'casadi._casadi',
         # Custom modules
         'stl_viewer',
         'viewer_widget',
