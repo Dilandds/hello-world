@@ -325,10 +325,119 @@ class STLViewerWidget(QWidget):
                     logger.error(f"load_stl: Failed to load 3DM file: {e}", exc_info=True)
                     raise
             elif file_ext.endswith('.obj'):
-                logger.info("load_stl: Detected OBJ file, loading with PyVista...")
-                # Read OBJ file using PyVista (native support)
-                mesh = pv.read(file_path)
-                logger.info(f"load_stl: OBJ file read successfully. Mesh info: {mesh}")
+                logger.info("load_stl: Detected OBJ file, attempting to load...")
+                mesh = None
+                load_error = None
+                
+                # Try PyVista first (fastest)
+                try:
+                    logger.info("load_stl: Trying PyVista OBJ reader...")
+                    mesh = pv.read(file_path)
+                    logger.info(f"load_stl: PyVista read completed. Mesh info: {mesh}")
+                    
+                    # Check if mesh is valid
+                    if mesh is not None and mesh.n_points > 0:
+                        logger.info("load_stl: PyVista successfully loaded OBJ file")
+                    else:
+                        logger.warning("load_stl: PyVista loaded empty mesh, trying meshio fallback...")
+                        mesh = None  # Will trigger fallback
+                except Exception as e:
+                    logger.warning(f"load_stl: PyVista failed to load OBJ: {e}, trying meshio fallback...")
+                    load_error = str(e)
+                    mesh = None
+                
+                # Fallback to meshio if PyVista failed or produced empty mesh
+                meshio_error = None
+                if mesh is None or mesh.n_points == 0:
+                    try:
+                        logger.info("load_stl: Trying meshio OBJ reader...")
+                        import meshio
+                        meshio_mesh = meshio.read(file_path)
+                        logger.info(f"load_stl: meshio read completed. Points: {len(meshio_mesh.points)}, Cells: {len(meshio_mesh.cells)}")
+                        
+                        # Convert meshio mesh to PyVista
+                        if len(meshio_mesh.points) == 0:
+                            raise ValueError("meshio loaded OBJ but found no points")
+                        
+                        points = meshio_mesh.points
+                        
+                        # Find triangle cells (most common for OBJ)
+                        cells = None
+                        cell_type = None
+                        for cell_block in meshio_mesh.cells:
+                            if cell_block.type == "triangle":
+                                cells = cell_block.data
+                                cell_type = "triangle"
+                                break
+                        
+                        # If no triangles, try other cell types
+                        if cells is None:
+                            if len(meshio_mesh.cells) > 0:
+                                cell_block = meshio_mesh.cells[0]
+                                cells = cell_block.data
+                                cell_type = cell_block.type
+                                logger.warning(f"load_stl: Using cell type {cell_type} (not triangles)")
+                            else:
+                                raise ValueError("meshio loaded OBJ but found no cells")
+                        
+                        # Create PyVista mesh
+                        if cell_type == "triangle":
+                            mesh = pv.PolyData(points, cells)
+                        else:
+                            # For other cell types, create UnstructuredGrid and extract surface
+                            unstructured = pv.UnstructuredGrid(cells, cell_type, points)
+                            mesh = unstructured.extract_surface()
+                        
+                        logger.info(f"load_stl: Converted meshio mesh to PyVista. Points: {mesh.n_points}, Cells: {mesh.n_cells}")
+                    except ImportError:
+                        meshio_error = "meshio is not available"
+                        logger.warning(f"load_stl: {meshio_error}, will try custom parser...")
+                    except ValueError as e:
+                        error_str = str(e)
+                        # Check if this is a texture coordinate mismatch error
+                        if "len(points)" in error_str and "point_data" in error_str:
+                            meshio_error = f"meshio texture coordinate mismatch: {error_str}"
+                            logger.warning(f"load_stl: {meshio_error}, will try custom parser...")
+                        else:
+                            # Other ValueError from meshio - re-raise
+                            meshio_error = error_str
+                            raise
+                    except Exception as e:
+                        meshio_error = str(e)
+                        logger.warning(f"load_stl: meshio failed: {meshio_error}, will try custom parser...")
+                
+                # Third fallback: custom OBJ parser for files with texture coordinate mismatches
+                if (mesh is None or mesh.n_points == 0) and meshio_error:
+                    try:
+                        logger.info("load_stl: Trying custom OBJ parser (handles texture coordinate mismatches)...")
+                        from core.obj_loader import ObjLoader
+                        mesh = ObjLoader.load_obj(file_path)
+                        logger.info(f"load_stl: Custom OBJ parser successfully loaded file. Points: {mesh.n_points}, Cells: {mesh.n_cells}")
+                    except ImportError:
+                        error_msg = "OBJ file could not be loaded. All loaders failed (PyVista, meshio, and custom parser unavailable)."
+                        if load_error:
+                            error_msg += f" PyVista error: {load_error}."
+                        if meshio_error:
+                            error_msg += f" meshio error: {meshio_error}."
+                        logger.error(f"load_stl: {error_msg}")
+                        raise ValueError(error_msg)
+                    except Exception as e:
+                        error_msg = "OBJ file could not be loaded with any available method (PyVista, meshio, or custom parser)."
+                        if load_error:
+                            error_msg += f" PyVista error: {load_error}."
+                        if meshio_error:
+                            error_msg += f" meshio error: {meshio_error}."
+                        error_msg += f" Custom parser error: {str(e)}"
+                        logger.error(f"load_stl: {error_msg}")
+                        raise ValueError(error_msg)
+                
+                # Final validation
+                if mesh is None or mesh.n_points == 0:
+                    error_msg = "OBJ file loaded but contains no geometry (zero points). The file may be corrupted or in an unsupported format."
+                    if load_error:
+                        error_msg += f" Reader error: {load_error}"
+                    logger.error(f"load_stl: {error_msg}")
+                    raise ValueError(error_msg)
             elif file_ext.endswith('.iges') or file_ext.endswith('.igs'):
                 logger.info("load_stl: Detected IGES file, loading with IgesLoader...")
                 from core.iges_loader import IgesLoader
@@ -346,6 +455,19 @@ class STLViewerWidget(QWidget):
             
             # Check if this is the first mesh load (before we update current_mesh)
             is_first_load = (self.current_mesh is None)
+            
+            # Validate mesh is not empty before proceeding
+            if mesh is None:
+                error_msg = "Failed to load mesh: file returned None. The file may be corrupted or in an unsupported format."
+                logger.error(f"load_stl: {error_msg}")
+                raise ValueError(error_msg)
+            
+            if mesh.n_points == 0:
+                error_msg = f"Loaded mesh contains no geometry (zero points). The file may be corrupted, empty, or in an unsupported format."
+                logger.error(f"load_stl: {error_msg}")
+                raise ValueError(error_msg)
+            
+            logger.info(f"load_stl: Mesh validated - {mesh.n_points} points, {mesh.n_cells} cells")
             
             # Store the original mesh BEFORE processing for rendering
             # This ensures volume calculations use the unmodified mesh
