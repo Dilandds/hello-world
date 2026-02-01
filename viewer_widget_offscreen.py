@@ -147,24 +147,59 @@ class STLViewerWidgetOffscreen(QWidget):
     
     def load_stl(self, file_path):
         """
-        Load and display an STL file.
+        Load and display an STL or STEP file.
         
         Args:
-            file_path (str): Path to the STL file
+            file_path (str): Path to the STL or STEP file
             
         Returns:
             bool: True if successful, False otherwise
         """
-        logger.info(f"load_stl: Starting to load STL file: {file_path}")
+        logger.info(f"load_stl: Starting to load file: {file_path}")
         try:
             # Clear previous mesh
             if self.current_mesh is not None:
                 self.plotter.clear()
             
-            logger.info("load_stl: Reading STL file with PyVista...")
-            # Read STL file using PyVista
-            mesh = pv.read(file_path)
-            logger.info(f"load_stl: STL file read successfully. Mesh info: {mesh}")
+            # Detect file format and load accordingly
+            file_ext = file_path.lower()
+            if file_ext.endswith('.step') or file_ext.endswith('.stp'):
+                logger.info("load_stl: Detected STEP file, loading with StepLoader...")
+                from core.step_loader import StepLoader
+                try:
+                    mesh = StepLoader.load_step(file_path)
+                    logger.info(f"load_stl: STEP file loaded successfully. Mesh info: {mesh}")
+                except Exception as e:
+                    logger.error(f"load_stl: Failed to load STEP file: {e}", exc_info=True)
+                    raise
+            elif file_ext.endswith('.3dm'):
+                logger.info("load_stl: Detected 3DM file, loading with Rhino3dmLoader...")
+                from core.rhino3dm_loader import Rhino3dmLoader
+                try:
+                    mesh = Rhino3dmLoader.load_3dm(file_path)
+                    logger.info(f"load_stl: 3DM file loaded successfully. Mesh info: {mesh}")
+                except Exception as e:
+                    logger.error(f"load_stl: Failed to load 3DM file: {e}", exc_info=True)
+                    raise
+            elif file_ext.endswith('.obj'):
+                logger.info("load_stl: Detected OBJ file, loading with PyVista...")
+                # Read OBJ file using PyVista (native support)
+                mesh = pv.read(file_path)
+                logger.info(f"load_stl: OBJ file read successfully. Mesh info: {mesh}")
+            elif file_ext.endswith('.iges') or file_ext.endswith('.igs'):
+                logger.info("load_stl: Detected IGES file, loading with IgesLoader...")
+                from core.iges_loader import IgesLoader
+                try:
+                    mesh = IgesLoader.load_iges(file_path)
+                    logger.info(f"load_stl: IGES file loaded successfully. Mesh info: {mesh}")
+                except Exception as e:
+                    logger.error(f"load_stl: Failed to load IGES file: {e}", exc_info=True)
+                    raise
+            else:
+                logger.info("load_stl: Reading STL file with PyVista...")
+                # Read STL file using PyVista
+                mesh = pv.read(file_path)
+                logger.info(f"load_stl: STL file read successfully. Mesh info: {mesh}")
             
             # Store the original mesh BEFORE processing for rendering
             # This ensures volume calculations use the unmodified mesh

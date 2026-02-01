@@ -183,11 +183,12 @@ class STLViewerWindow(QMainWindow):
         logger.info(f"_load_dropped_file: Loading dropped file: {file_path}")
         
         # Validate file extension
-        if not file_path.lower().endswith('.stl'):
+        file_ext = file_path.lower()
+        if not (file_ext.endswith('.stl') or file_ext.endswith('.step') or file_ext.endswith('.stp') or file_ext.endswith('.3dm') or file_ext.endswith('.obj') or file_ext.endswith('.iges') or file_ext.endswith('.igs')):
             QMessageBox.warning(
                 self,
                 "Invalid File",
-                "Please select a valid STL file (.stl extension)."
+                "Please select a valid 3D file (.stl, .step, .stp, .3dm, .obj, .iges, or .igs extension)."
             )
             return
         
@@ -195,10 +196,21 @@ class STLViewerWindow(QMainWindow):
         success = self.viewer_widget.load_stl(file_path)
         
         if not success:
+            file_ext = file_path.lower()
+            if file_ext.endswith('.step') or file_ext.endswith('.stp'):
+                file_type = "STEP"
+            elif file_ext.endswith('.3dm'):
+                file_type = "3DM"
+            elif file_ext.endswith('.obj'):
+                file_type = "OBJ"
+            elif file_ext.endswith('.iges') or file_ext.endswith('.igs'):
+                file_type = "IGES"
+            else:
+                file_type = "STL"
             QMessageBox.critical(
                 self,
                 "Error",
-                f"Failed to load STL file:\n{file_path}\n\nPlease ensure the file is a valid STL format."
+                f"Failed to load {file_type} file:\n{file_path}\n\nPlease ensure the file is a valid {file_type} format."
             )
         else:
             # Update window title with filename
@@ -303,24 +315,25 @@ class STLViewerWindow(QMainWindow):
 
     
     def upload_stl_file(self):
-        """Open file dialog and load selected STL file."""
+        """Open file dialog and load selected STL or STEP file."""
         logger.info("upload_stl_file: Opening file dialog...")
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select STL File",
+            "Select 3D File",
             "",
-            "STL Files (*.stl);;All Files (*)"
+            "3D Files (*.stl *.step *.stp *.3dm *.obj *.iges *.igs);;STL Files (*.stl);;STEP Files (*.step *.stp);;3DM Files (*.3dm);;OBJ Files (*.obj);;IGES Files (*.iges *.igs);;All Files (*)"
         )
         
         if file_path:
             logger.info(f"upload_stl_file: File selected: {file_path}")
             # Validate file extension
-            if not file_path.lower().endswith('.stl'):
+            file_ext = file_path.lower()
+            if not (file_ext.endswith('.stl') or file_ext.endswith('.step') or file_ext.endswith('.stp') or file_ext.endswith('.3dm') or file_ext.endswith('.obj') or file_ext.endswith('.iges') or file_ext.endswith('.igs')):
                 logger.warning(f"upload_stl_file: Invalid file extension: {file_path}")
                 QMessageBox.warning(
                     self,
                     "Invalid File",
-                    "Please select a valid STL file (.stl extension)."
+                    "Please select a valid 3D file (.stl, .step, .stp, .3dm, .obj, .iges, or .igs extension)."
                 )
                 return
             
@@ -329,11 +342,22 @@ class STLViewerWindow(QMainWindow):
             success = self.viewer_widget.load_stl(file_path)
             
             if not success:
-                logger.error(f"upload_stl_file: Failed to load STL file: {file_path}")
+                logger.error(f"upload_stl_file: Failed to load file: {file_path}")
+                file_ext = file_path.lower()
+                if file_ext.endswith('.step') or file_ext.endswith('.stp'):
+                    file_type = "STEP"
+                elif file_ext.endswith('.3dm'):
+                    file_type = "3DM"
+                elif file_ext.endswith('.obj'):
+                    file_type = "OBJ"
+                elif file_ext.endswith('.iges') or file_ext.endswith('.igs'):
+                    file_type = "IGES"
+                else:
+                    file_type = "STL"
                 QMessageBox.critical(
                     self,
                     "Error",
-                    f"Failed to load STL file:\n{file_path}\n\nPlease ensure the file is a valid STL format."
+                    f"Failed to load {file_type} file:\n{file_path}\n\nPlease ensure the file is a valid {file_type} format."
                 )
             else:
                 logger.info(f"upload_stl_file: STL file loaded successfully: {file_path}")

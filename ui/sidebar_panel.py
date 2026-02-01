@@ -121,15 +121,16 @@ class SidebarPanel(QWidget):
         layout.addWidget(title_label)
         
         # Upload button
-        self.upload_btn = QPushButton("Upload STL File")
+        self.upload_btn = QPushButton("Upload 3D File")
         self.upload_btn.setMinimumHeight(50)
         self.upload_btn.setObjectName("uploadBtn")
         self.upload_btn.setStyleSheet(get_button_style("uploadBtn"))
+        self.upload_btn.setToolTip("Upload STL, STEP, 3DM, OBJ, or IGES file for 3D visualization")
         layout.addWidget(self.upload_btn)
         
         # Info label
         info_label = QLabel(
-            "Click the button above\nto load an STL file\nfor 3D visualization."
+            "Click the button above\nto load a 3D file (STL, STEP, 3DM, OBJ, IGES)\nfor 3D visualization."
         )
         info_label.setObjectName("infoLabel")
         info_label.setAlignment(Qt.AlignCenter)

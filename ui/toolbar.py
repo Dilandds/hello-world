@@ -273,7 +273,7 @@ class ViewControlsToolbar(QWidget):
         content_layout.addWidget(self.fullscreen_btn)
         
         # Load button - icon only with tooltip for filename
-        self.load_btn = ToolbarButton("📂", "", "Load or replace STL file")
+        self.load_btn = ToolbarButton("📂", "", "Load or replace 3D file (STL/STEP/3DM/OBJ/IGES)")
         self.load_btn.clicked.connect(self._on_load_clicked)
         self.load_btn.setFixedWidth(44)
         content_layout.addWidget(self.load_btn)
@@ -410,7 +410,7 @@ class ViewControlsToolbar(QWidget):
         if filename:
             self.load_btn.setToolTip(filename)
         else:
-            self.load_btn.setToolTip("Load or replace STL file")
+            self.load_btn.setToolTip("Load or replace 3D file (STL/STEP/3DM/OBJ/IGES)")
     
     def _apply_tooltip_style(self):
         """Apply tooltip styling with black text."""

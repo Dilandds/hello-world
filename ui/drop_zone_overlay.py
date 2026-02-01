@@ -45,7 +45,7 @@ class DropZoneOverlay(QWidget):
         layout.setAlignment(Qt.AlignCenter)
         
         # Primary text
-        self.primary_label = QLabel("Drag & drop your STL file here")
+        self.primary_label = QLabel("Drag & drop your 3D file here")
         self.primary_label.setAlignment(Qt.AlignCenter)
         self.primary_label.setStyleSheet("""
             QLabel {
@@ -69,7 +69,7 @@ class DropZoneOverlay(QWidget):
         """)
         
         # Helper text
-        self.helper_label = QLabel(".STL only · Max 50 MB")
+        self.helper_label = QLabel("STL, STEP, 3DM, OBJ & IGES files · Max 50 MB")
         self.helper_label.setAlignment(Qt.AlignCenter)
         self.helper_label.setStyleSheet("""
             QLabel {
@@ -117,7 +117,8 @@ class DropZoneOverlay(QWidget):
             urls = event.mimeData().urls()
             if urls and len(urls) == 1:
                 file_path = urls[0].toLocalFile()
-                if file_path.lower().endswith('.stl'):
+                file_ext = file_path.lower()
+                if file_ext.endswith('.stl') or file_ext.endswith('.step') or file_ext.endswith('.stp') or file_ext.endswith('.3dm') or file_ext.endswith('.obj') or file_ext.endswith('.iges') or file_ext.endswith('.igs'):
                     event.acceptProposedAction()
                     self._is_dragging = True
                     self._update_dragging_state(True)
@@ -143,8 +144,9 @@ class DropZoneOverlay(QWidget):
                 file_path = urls[0].toLocalFile()
                 
                 # Validate file extension
-                if not file_path.lower().endswith('.stl'):
-                    self.error_occurred.emit("Invalid file type. Please use .STL files only.")
+                file_ext = file_path.lower()
+                if not (file_ext.endswith('.stl') or file_ext.endswith('.step') or file_ext.endswith('.stp') or file_ext.endswith('.3dm') or file_ext.endswith('.obj') or file_ext.endswith('.iges') or file_ext.endswith('.igs')):
+                    self.error_occurred.emit("Invalid file type. Please use .STL, .STEP, .STP, .3DM, .OBJ, .IGES, or .IGS files only.")
                     return
                 
                 # Validate file size
@@ -168,7 +170,7 @@ class DropZoneOverlay(QWidget):
     def _update_dragging_state(self, is_dragging: bool):
         """Update the text labels based on drag state."""
         if is_dragging:
-            self.primary_label.setText("Release to load your STL")
+            self.primary_label.setText("Release to load your file")
             self.primary_label.setStyleSheet("""
                 QLabel {
                     font-size: 18px;
@@ -178,7 +180,7 @@ class DropZoneOverlay(QWidget):
                 }
             """)
         else:
-            self.primary_label.setText("Drag & drop your STL file here")
+            self.primary_label.setText("Drag & drop your 3D file here")
             self.primary_label.setStyleSheet("""
                 QLabel {
                     font-size: 18px;
