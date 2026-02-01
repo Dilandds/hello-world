@@ -428,6 +428,7 @@ class ViewControlsToolbar(QWidget):
                 font-size: 11px;
             }
         """
+
         existing = app.styleSheet() or ""
         if "QToolTip" not in existing:
             app.setStyleSheet(existing + "\n" + tooltip_style)

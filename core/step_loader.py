@@ -3,9 +3,62 @@ STEP file loader for converting STEP files to PyVista meshes.
 Uses meshio as primary loader, with cadquery as fallback.
 """
 import logging
+import sys
+import os
+import traceback
+from pathlib import Path
 import pyvista as pv
 
 logger = logging.getLogger(__name__)
+
+
+def _log_windows_info(logger_instance, context=""):
+    """Log Windows-specific system information for debugging."""
+    if sys.platform != 'win32':
+        return
+    
+    logger_instance.info(f"=== Windows System Information {context} ===")
+    logger_instance.info(f"Python version: {sys.version}")
+    logger_instance.info(f"Python executable: {sys.executable}")
+    logger_instance.info(f"Platform: {sys.platform}")
+    logger_instance.info(f"Architecture: {sys.maxsize > 2**32 and '64-bit' or '32-bit'}")
+    logger_instance.info(f"Frozen (PyInstaller): {getattr(sys, 'frozen', False)}")
+    if getattr(sys, 'frozen', False):
+        logger_instance.info(f"MEIPASS: {getattr(sys, '_MEIPASS', 'N/A')}")
+    
+    # Log PATH environment variable
+    path_env = os.environ.get('PATH', '')
+    path_dirs = path_env.split(os.pathsep) if path_env else []
+    logger_instance.info(f"PATH contains {len(path_dirs)} directories")
+    if path_dirs:
+        logger_instance.info(f"First 5 PATH entries: {path_dirs[:5]}")
+    
+    # Log sys.path
+    logger_instance.info(f"sys.path contains {len(sys.path)} entries")
+    if sys.path:
+        logger_instance.info(f"First 5 sys.path entries: {sys.path[:5]}")
+    
+    # Try to find OCP installation
+    try:
+        import site
+        site_packages = site.getsitepackages()
+        logger_instance.info(f"Site packages locations: {site_packages}")
+        
+        # Look for OCP in site-packages
+        for site_pkg in site_packages:
+            ocp_path = Path(site_pkg) / 'OCP'
+            if ocp_path.exists():
+                logger_instance.info(f"Found OCP at: {ocp_path}")
+                # Look for DLLs
+                dll_files = list(ocp_path.glob('*.dll'))
+                if dll_files:
+                    logger_instance.info(f"Found {len(dll_files)} DLL files in OCP directory")
+                    logger_instance.info(f"DLL files: {[f.name for f in dll_files[:10]]}")
+                break
+    except Exception as e:
+        logger_instance.warning(f"Could not inspect site packages: {e}")
+    
+    logger_instance.info("=== End Windows System Information ===")
 
 
 class StepLoader:
@@ -23,10 +76,29 @@ class StepLoader:
             pyvista.PolyData: PyVista mesh object, or None if failed
         """
         try:
+            if sys.platform == 'win32':
+                logger.info("StepLoader: [Windows] Before meshio import")
+                logger.info(f"StepLoader: [Windows] sys.path before import: {len(sys.path)} entries")
+            
             import meshio
             
+            if sys.platform == 'win32':
+                logger.info("StepLoader: [Windows] meshio imported successfully")
+                try:
+                    logger.info(f"StepLoader: [Windows] meshio version: {meshio.__version__ if hasattr(meshio, '__version__') else 'unknown'}")
+                    logger.info(f"StepLoader: [Windows] meshio location: {meshio.__file__ if hasattr(meshio, '__file__') else 'unknown'}")
+                except Exception as e:
+                    logger.warning(f"StepLoader: [Windows] Could not get meshio info: {e}")
+            
             logger.info(f"StepLoader: Attempting to load STEP file with meshio: {file_path}")
+            
+            if sys.platform == 'win32':
+                logger.info(f"StepLoader: [Windows] Calling meshio.read() with file: {file_path}")
+            
             meshio_mesh = meshio.read(file_path)
+            
+            if sys.platform == 'win32':
+                logger.info("StepLoader: [Windows] meshio.read() completed successfully")
             
             # Convert meshio mesh to PyVista
             # meshio stores points and cells separately
@@ -71,10 +143,20 @@ class StepLoader:
             logger.info(f"StepLoader: Successfully loaded STEP file with meshio. Points: {len(points)}, Cells: {len(cells)}")
             return pv_mesh
             
-        except ImportError:
+        except ImportError as e:
+            if sys.platform == 'win32':
+                logger.error("StepLoader: [Windows] meshio import failed")
+                logger.error(f"StepLoader: [Windows] ImportError type: {type(e).__name__}")
+                logger.error(f"StepLoader: [Windows] ImportError message: {str(e)}")
+                logger.error(f"StepLoader: [Windows] Full traceback:", exc_info=True)
             logger.error("StepLoader: meshio library not available")
             return None
         except Exception as e:
+            if sys.platform == 'win32':
+                logger.warning("StepLoader: [Windows] meshio.read() failed")
+                logger.warning(f"StepLoader: [Windows] Exception type: {type(e).__name__}")
+                logger.warning(f"StepLoader: [Windows] Exception message: {str(e)}")
+                logger.warning(f"StepLoader: [Windows] Full traceback:", exc_info=True)
             logger.warning(f"StepLoader: Failed to load with meshio: {e}")
             return None
     
@@ -90,12 +172,32 @@ class StepLoader:
             pyvista.PolyData: PyVista mesh object, or None if failed
         """
         try:
+            if sys.platform == 'win32':
+                logger.info("StepLoader: [Windows] Before cadquery import")
+                logger.info(f"StepLoader: [Windows] sys.path before import: {len(sys.path)} entries")
+            
             import cadquery as cq
+            
+            if sys.platform == 'win32':
+                logger.info("StepLoader: [Windows] cadquery imported successfully")
+                try:
+                    logger.info(f"StepLoader: [Windows] cadquery version: {cq.__version__ if hasattr(cq, '__version__') else 'unknown'}")
+                    logger.info(f"StepLoader: [Windows] cadquery location: {cq.__file__ if hasattr(cq, '__file__') else 'unknown'}")
+                except Exception as e:
+                    logger.warning(f"StepLoader: [Windows] Could not get cadquery info: {e}")
             
             logger.info(f"StepLoader: Attempting to load STEP file with cadquery: {file_path}")
             
+            if sys.platform == 'win32':
+                logger.info(f"StepLoader: [Windows] Calling cq.importers.importStep() with file: {file_path}")
+            
             # Import STEP file
             result = cq.importers.importStep(file_path)
+            
+            if sys.platform == 'win32':
+                logger.info("StepLoader: [Windows] cq.importers.importStep() completed successfully")
+                logger.info(f"StepLoader: [Windows] Result type: {type(result)}")
+                logger.info(f"StepLoader: [Windows] Result has 'val' attribute: {hasattr(result, 'val')}")
             
             # Convert cadquery object to mesh
             # cadquery objects need to be tessellated (triangulated) first
@@ -112,7 +214,15 @@ class StepLoader:
             # Tessellate the solid to get triangles
             # cadquery uses OCP (OpenCASCADE Python) internally
             try:
+                if sys.platform == 'win32':
+                    logger.info("StepLoader: [Windows] Before OCP module imports")
+                    logger.info(f"StepLoader: [Windows] sys.path before OCP import: {len(sys.path)} entries")
+                
                 from OCP.BRepMesh import BRepMesh_IncrementalMesh
+                
+                if sys.platform == 'win32':
+                    logger.info("StepLoader: [Windows] BRepMesh_IncrementalMesh imported successfully")
+                
                 from OCP.TopTools import TopTools_ListOfShape
                 from OCP.TopAbs import TopAbs_FACE
                 from OCP.TopExp import TopExp_Explorer
@@ -121,23 +231,79 @@ class StepLoader:
                 from OCP.Poly import Poly_Triangulation
                 from OCP.TColgp import TColgp_Array1OfPnt
                 
+                if sys.platform == 'win32':
+                    logger.info("StepLoader: [Windows] All OCP modules imported successfully")
+                    try:
+                        import OCP
+                        logger.info(f"StepLoader: [Windows] OCP location: {OCP.__file__ if hasattr(OCP, '__file__') else 'unknown'}")
+                    except Exception as e:
+                        logger.warning(f"StepLoader: [Windows] Could not get OCP info: {e}")
+                
                 # Get the underlying OCP shape
+                if sys.platform == 'win32':
+                    logger.info("StepLoader: [Windows] Extracting OCP shape from solid")
+                    logger.info(f"StepLoader: [Windows] solid type: {type(solid)}")
+                    logger.info(f"StepLoader: [Windows] solid has 'wrapped' attribute: {hasattr(solid, 'wrapped')}")
+                
                 ocp_shape = solid.wrapped if hasattr(solid, 'wrapped') else solid
                 
+                if sys.platform == 'win32':
+                    logger.info(f"StepLoader: [Windows] ocp_shape type: {type(ocp_shape)}")
+                    logger.info(f"StepLoader: [Windows] ocp_shape is None: {ocp_shape is None}")
+                
                 # Mesh the shape
+                if sys.platform == 'win32':
+                    logger.info("StepLoader: [Windows] Before BRepMesh_IncrementalMesh creation")
+                    logger.info(f"StepLoader: [Windows] Parameters: ocp_shape type={type(ocp_shape)}, deflection=0.1")
+                
                 mesh_tool = BRepMesh_IncrementalMesh(ocp_shape, 0.1)  # 0.1 is deflection
+                
+                if sys.platform == 'win32':
+                    logger.info("StepLoader: [Windows] BRepMesh_IncrementalMesh created successfully")
+                    logger.info("StepLoader: [Windows] Calling mesh_tool.Perform()")
+                
                 mesh_tool.Perform()
                 
+                if sys.platform == 'win32':
+                    logger.info("StepLoader: [Windows] mesh_tool.Perform() completed successfully")
+                
                 # Extract triangles from faces
+                if sys.platform == 'win32':
+                    logger.info("StepLoader: [Windows] Starting triangle extraction from faces")
+                
                 points_list = []
                 faces_list = []
                 point_index = 0
                 
+                if sys.platform == 'win32':
+                    logger.info("StepLoader: [Windows] Creating TopExp_Explorer")
+                
                 explorer = TopExp_Explorer(ocp_shape, TopAbs_FACE)
+                
+                if sys.platform == 'win32':
+                    logger.info("StepLoader: [Windows] TopExp_Explorer created successfully")
+                    face_count = 0
+                
                 while explorer.More():
+                    if sys.platform == 'win32':
+                        face_count += 1
+                        if face_count == 1:
+                            logger.info("StepLoader: [Windows] Processing first face")
+                    
                     face = explorer.Current()
+                    
+                    if sys.platform == 'win32' and face_count == 1:
+                        logger.info(f"StepLoader: [Windows] face type: {type(face)}")
+                    
                     location = TopLoc_Location()
+                    
+                    if sys.platform == 'win32' and face_count == 1:
+                        logger.info("StepLoader: [Windows] Calling BRep_Tool.Triangulation()")
+                    
                     triangulation = BRep_Tool.Triangulation(face, location)
+                    
+                    if sys.platform == 'win32' and face_count == 1:
+                        logger.info(f"StepLoader: [Windows] triangulation result: {triangulation is not None}")
                     
                     if triangulation:
                         # Get points
@@ -181,26 +347,70 @@ class StepLoader:
                 return pv_mesh
                 
             except Exception as e:
+                if sys.platform == 'win32':
+                    logger.error("StepLoader: [Windows] Exception during OCP mesh extraction")
+                    logger.error(f"StepLoader: [Windows] Exception type: {type(e).__name__}")
+                    logger.error(f"StepLoader: [Windows] Exception message: {str(e)}")
+                    logger.error(f"StepLoader: [Windows] Full traceback:", exc_info=True)
+                    # Log variable states
+                    try:
+                        logger.error(f"StepLoader: [Windows] solid type at error: {type(solid)}")
+                        logger.error(f"StepLoader: [Windows] solid has 'wrapped': {hasattr(solid, 'wrapped')}")
+                        if hasattr(solid, 'wrapped'):
+                            logger.error(f"StepLoader: [Windows] solid.wrapped type: {type(solid.wrapped)}")
+                    except:
+                        pass
+                
                 logger.warning(f"StepLoader: Failed to extract mesh from cadquery object: {e}")
                 # Fallback: try to export to STL and read back
+                if sys.platform == 'win32':
+                    logger.info("StepLoader: [Windows] Attempting STL export fallback")
+                
                 try:
                     import tempfile
                     import os
                     with tempfile.NamedTemporaryFile(suffix='.stl', delete=False) as tmp:
                         tmp_path = tmp.name
+                    
+                    if sys.platform == 'win32':
+                        logger.info(f"StepLoader: [Windows] Temporary STL path: {tmp_path}")
+                        logger.info("StepLoader: [Windows] Calling cq.exporters.export()")
+                    
                     cq.exporters.export(result, tmp_path)
+                    
+                    if sys.platform == 'win32':
+                        logger.info("StepLoader: [Windows] STL export successful, reading with PyVista")
+                        logger.info(f"StepLoader: [Windows] Temporary file exists: {os.path.exists(tmp_path)}")
+                        if os.path.exists(tmp_path):
+                            logger.info(f"StepLoader: [Windows] Temporary file size: {os.path.getsize(tmp_path)} bytes")
+                    
                     pv_mesh = pv.read(tmp_path)
                     os.unlink(tmp_path)
                     logger.info("StepLoader: Successfully loaded via STL export fallback")
                     return pv_mesh
                 except Exception as e2:
+                    if sys.platform == 'win32':
+                        logger.error("StepLoader: [Windows] STL export fallback failed")
+                        logger.error(f"StepLoader: [Windows] Exception type: {type(e2).__name__}")
+                        logger.error(f"StepLoader: [Windows] Exception message: {str(e2)}")
+                        logger.error(f"StepLoader: [Windows] Full traceback:", exc_info=True)
                     logger.error(f"StepLoader: STL export fallback also failed: {e2}")
                     return None
             
-        except ImportError:
+        except ImportError as e:
+            if sys.platform == 'win32':
+                logger.error("StepLoader: [Windows] cadquery import failed")
+                logger.error(f"StepLoader: [Windows] ImportError type: {type(e).__name__}")
+                logger.error(f"StepLoader: [Windows] ImportError message: {str(e)}")
+                logger.error(f"StepLoader: [Windows] Full traceback:", exc_info=True)
             logger.error("StepLoader: cadquery library not available")
             return None
         except Exception as e:
+            if sys.platform == 'win32':
+                logger.error("StepLoader: [Windows] Exception during cadquery STEP loading")
+                logger.error(f"StepLoader: [Windows] Exception type: {type(e).__name__}")
+                logger.error(f"StepLoader: [Windows] Exception message: {str(e)}")
+                logger.error(f"StepLoader: [Windows] Full traceback:", exc_info=True)
             logger.warning(f"StepLoader: Failed to load with cadquery: {e}")
             return None
     
@@ -221,10 +431,26 @@ class StepLoader:
         """
         import os
         
+        # Log Windows system information at start
+        if sys.platform == 'win32':
+            _log_windows_info(logger, "at STEP loading start")
+            logger.info(f"StepLoader: Loading STEP file on Windows: {file_path}")
+            logger.info(f"StepLoader: File path type: {type(file_path)}")
+            logger.info(f"StepLoader: File path absolute: {os.path.abspath(file_path) if file_path else 'N/A'}")
+        
         if not os.path.exists(file_path):
+            if sys.platform == 'win32':
+                logger.error(f"StepLoader: File not found on Windows: {file_path}")
+                logger.error(f"StepLoader: Absolute path: {os.path.abspath(file_path) if file_path else 'N/A'}")
+                logger.error(f"StepLoader: Current working directory: {os.getcwd()}")
             raise FileNotFoundError(f"STEP file not found: {file_path}")
         
         logger.info(f"StepLoader: Loading STEP file: {file_path}")
+        
+        if sys.platform == 'win32':
+            file_size = os.path.getsize(file_path)
+            logger.info(f"StepLoader: File size: {file_size} bytes")
+            logger.info(f"StepLoader: File readable: {os.access(file_path, os.R_OK)}")
         
         # Try meshio first (lighter, faster)
         mesh = StepLoader.load_with_meshio(file_path)
