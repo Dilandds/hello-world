@@ -608,7 +608,7 @@ class SidebarPanel(QWidget):
         info_icon.setFixedWidth(18)
         info_icon.setAlignment(Qt.AlignTop)
         
-        disclaimer = QLabel("Requires Adobe Acrobat Reader for interactive 3D. Install vtk-u3dexporter for best results.")
+        disclaimer = QLabel("Requires Adobe Acrobat Reader for interactive 3D. Ensure VTK provides vtkU3DExporter (usually via 'pip install -U vtk').")
         disclaimer_font = QFont()
         disclaimer_font.setPointSize(9)
         disclaimer.setFont(disclaimer_font)
