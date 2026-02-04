@@ -2,9 +2,9 @@
 3D PDF Exporter using Aspose.3D library.
 Exports interactive 3D PDFs where users can rotate/zoom the model in Adobe Acrobat Reader.
 
-Implementation notes:
-- Uses Aspose.3D library which has native 3D PDF export support
-- Falls back to static multi-view PDF if Aspose is not available
+Requirements:
+- Python 3.11 (Aspose-3D requires Python < 3.12)
+- pip install aspose-3d
 """
 import logging
 import tempfile
@@ -37,6 +37,14 @@ class PDF3DExporter:
     def check_aspose_available():
         """Check if Aspose.3D is available for 3D PDF export."""
         PDF3DExporter._log_runtime_context()
+        
+        # Check Python version first
+        py_version = sys.version_info
+        if py_version >= (3, 12):
+            msg = f"Python {py_version.major}.{py_version.minor} detected. Aspose-3D requires Python < 3.12. Please use Python 3.11."
+            logger.error(msg)
+            return False, msg
+        
         try:
             from aspose.threed import Scene
             from aspose.threed.formats import PdfSaveOptions
@@ -44,7 +52,7 @@ class PDF3DExporter:
             return True, "Aspose.3D available"
         except ImportError as e:
             logger.warning("Aspose.3D not available: %s", e)
-            return False, f"Aspose.3D not installed: {e}. Install with: pip install aspose-3d"
+            return False, f"Aspose.3D not installed. Install with: pip install aspose-3d"
         except Exception as e:
             logger.error("Error checking Aspose.3D: %s", e, exc_info=True)
             return False, str(e)
@@ -57,7 +65,7 @@ class PDF3DExporter:
         Args:
             mesh: PyVista mesh object
             output_path: Path for the output PDF
-            title: Title for the document (used in filename if needed)
+            title: Title for the document
             allow_static_fallback: If True, fall back to static PDF when Aspose unavailable
             
         Returns:
@@ -65,6 +73,12 @@ class PDF3DExporter:
         """
         if mesh is None:
             return False, "No mesh provided"
+
+        logger.info("=" * 60)
+        logger.info("Starting interactive 3D PDF export")
+        logger.info("Output path: %s", output_path)
+        logger.info("Title: %s", title)
+        logger.info("=" * 60)
 
         # Check if Aspose is available
         available, msg = PDF3DExporter.check_aspose_available()
@@ -76,6 +90,8 @@ class PDF3DExporter:
             return False, msg
 
         temp_dir = tempfile.mkdtemp()
+        logger.info("Created temp directory: %s", temp_dir)
+        
         try:
             # Export mesh to temporary STL file first
             temp_stl = os.path.join(temp_dir, "temp_model.stl")
@@ -84,52 +100,69 @@ class PDF3DExporter:
             try:
                 n_points = mesh.n_points if hasattr(mesh, 'n_points') else mesh.GetNumberOfPoints()
                 n_cells = mesh.n_cells if hasattr(mesh, 'n_cells') else mesh.GetNumberOfCells()
-                logger.info("Exporting mesh: points=%d, cells=%d", n_points, n_cells)
-            except Exception:
-                logger.debug("Could not read mesh statistics", exc_info=True)
+                logger.info("Mesh statistics: points=%d, cells=%d", n_points, n_cells)
+            except Exception as e:
+                logger.debug("Could not read mesh statistics: %s", e)
             
             # Save PyVista mesh to STL
             try:
+                logger.info("Saving mesh to temporary STL: %s", temp_stl)
                 mesh.save(temp_stl)
-                logger.info("Saved temporary STL: %s (bytes=%d)", temp_stl, os.path.getsize(temp_stl))
+                stl_size = os.path.getsize(temp_stl)
+                logger.info("STL saved successfully: %d bytes", stl_size)
             except Exception as e:
                 logger.error("Failed to save temporary STL: %s", e, exc_info=True)
                 return False, f"Failed to save temporary STL: {e}"
             
             # Use Aspose.3D to convert STL to interactive 3D PDF
             try:
+                logger.info("Importing Aspose.3D modules...")
                 from aspose.threed import Scene
                 from aspose.threed.formats import PdfSaveOptions, PdfLightingScheme, PdfRenderMode
+                logger.info("Aspose.3D modules imported successfully")
                 
                 # Load the STL file
+                logger.info("Loading STL into Aspose.3D Scene...")
                 scene = Scene.from_file(temp_stl)
-                logger.info("Loaded STL into Aspose.3D Scene")
+                logger.info("STL loaded into Aspose.3D Scene successfully")
                 
-                # Configure PDF export options
+                # Configure PDF export options for maximum interactivity
+                logger.info("Configuring PDF export options...")
                 pdf_options = PdfSaveOptions()
                 pdf_options.lighting_scheme = PdfLightingScheme.CAD
                 pdf_options.render_mode = PdfRenderMode.SHADED_ILLUSTRATION
                 
-                # Enable interactivity
-                if hasattr(pdf_options, 'embed_textures'):
-                    pdf_options.embed_textures = True
+                # Try to set additional options if available
+                try:
+                    if hasattr(pdf_options, 'embed_textures'):
+                        pdf_options.embed_textures = True
+                        logger.info("Enabled texture embedding")
+                except Exception as e:
+                    logger.debug("Could not set embed_textures: %s", e)
                 
-                logger.info("Saving interactive 3D PDF to: %s", output_path)
+                logger.info("PDF options configured: lighting=%s, render_mode=%s", 
+                           pdf_options.lighting_scheme, pdf_options.render_mode)
                 
                 # Save as 3D PDF
+                logger.info("Exporting to 3D PDF: %s", output_path)
                 scene.save(output_path, pdf_options)
+                logger.info("Aspose.3D scene.save() completed")
                 
                 # Verify output
                 if os.path.exists(output_path):
                     file_size = os.path.getsize(output_path)
-                    logger.info("3D PDF created successfully: %s (bytes=%d)", output_path, file_size)
+                    logger.info("=" * 60)
+                    logger.info("3D PDF CREATED SUCCESSFULLY")
+                    logger.info("Path: %s", output_path)
+                    logger.info("Size: %d bytes (%.2f KB)", file_size, file_size / 1024)
+                    logger.info("=" * 60)
                     
                     if file_size < 1024:
-                        logger.warning("PDF file is unexpectedly small (%d bytes)", file_size)
+                        logger.warning("WARNING: PDF file is unexpectedly small (%d bytes) - may indicate an issue", file_size)
                     
                     return True, output_path
                 else:
-                    logger.error("PDF file was not created: %s", output_path)
+                    logger.error("PDF file was not created at: %s", output_path)
                     return False, "PDF file was not created"
                     
             except Exception as e:
@@ -148,13 +181,15 @@ class PDF3DExporter:
                     except Exception:
                         pass
                 os.rmdir(temp_dir)
-            except Exception:
-                pass
+                logger.debug("Cleaned up temp directory: %s", temp_dir)
+            except Exception as e:
+                logger.debug("Could not clean up temp directory: %s", e)
     
     @staticmethod
     def export_static_3d_pdf(mesh, output_path, title="3D Model"):
         """
         Export static PDF with multiple high-quality view screenshots.
+        This is used as a fallback when interactive export is not available.
         
         Args:
             mesh: PyVista mesh object
@@ -178,6 +213,8 @@ class PDF3DExporter:
             
             if mesh is None:
                 return False, "No mesh provided"
+            
+            logger.info("Creating static PDF with multiple views...")
             
             # Create temporary directory for screenshots
             temp_dir = tempfile.mkdtemp()
@@ -225,9 +262,10 @@ class PDF3DExporter:
                     
                     screenshots.append(img_path)
                     view_names.append(view_name)
+                    logger.info("Captured %s view", view_name)
                     
                 except Exception as e:
-                    logger.warning(f"Failed to capture {view_name} view: {e}")
+                    logger.warning("Failed to capture %s view: %s", view_name, e)
             
             if not screenshots:
                 return False, "Failed to capture any views"
@@ -345,6 +383,7 @@ class PDF3DExporter:
                     story.append(Spacer(1, 15))
             
             doc.build(story)
+            logger.info("Static PDF created: %s", output_path)
             
             # Cleanup
             for img_path in screenshots:
@@ -360,9 +399,7 @@ class PDF3DExporter:
             return True, output_path
             
         except Exception as e:
-            logger.error(f"Failed to export static 3D PDF: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error("Failed to export static 3D PDF: %s", e, exc_info=True)
             return False, str(e)
     
     # Backward compatibility aliases
