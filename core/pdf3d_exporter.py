@@ -118,6 +118,8 @@ class PDF3DExporter:
             try:
                 logger.info("Importing Aspose.3D modules...")
                 from aspose.threed import Scene
+                from aspose.threed.entities import Camera
+                from aspose.threed.utilities import Vector3, BoundingBox
                 from aspose.threed.formats import PdfSaveOptions, PdfLightingScheme, PdfRenderMode
                 logger.info("Aspose.3D modules imported successfully")
                 
@@ -125,6 +127,45 @@ class PDF3DExporter:
                 logger.info("Loading STL into Aspose.3D Scene...")
                 scene = Scene.from_file(temp_stl)
                 logger.info("STL loaded into Aspose.3D Scene successfully")
+                
+                # Center the model and set up camera to view it properly
+                try:
+                    # Calculate the bounding box of the entire scene
+                    bbox = scene.root_node.get_bounding_box()
+                    center = Vector3(
+                        (bbox.minimum.x + bbox.maximum.x) / 2,
+                        (bbox.minimum.y + bbox.maximum.y) / 2,
+                        (bbox.minimum.z + bbox.maximum.z) / 2
+                    )
+                    
+                    # Calculate the size to determine camera distance
+                    size_x = bbox.maximum.x - bbox.minimum.x
+                    size_y = bbox.maximum.y - bbox.minimum.y
+                    size_z = bbox.maximum.z - bbox.minimum.z
+                    max_size = max(size_x, size_y, size_z)
+                    
+                    logger.info("Model bounds: center=(%.2f, %.2f, %.2f), max_size=%.2f",
+                               center.x, center.y, center.z, max_size)
+                    
+                    # Create and position camera for isometric-like view
+                    camera = Camera()
+                    camera.name = "MainCamera"
+                    
+                    # Position camera at isometric angle, distance based on model size
+                    cam_distance = max_size * 2.5
+                    camera_node = scene.root_node.create_child_node(camera)
+                    camera_node.transform.translation = Vector3(
+                        center.x + cam_distance,
+                        center.y + cam_distance * 0.7,
+                        center.z + cam_distance
+                    )
+                    
+                    # Point camera at model center
+                    camera.look_at = center
+                    logger.info("Camera positioned at distance %.2f, looking at center", cam_distance)
+                    
+                except Exception as e:
+                    logger.warning("Could not center model (will use default view): %s", e)
                 
                 # Configure PDF export options for maximum interactivity
                 logger.info("Configuring PDF export options...")
