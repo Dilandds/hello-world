@@ -7,7 +7,7 @@ from datetime import datetime
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QScrollArea, QFrame, QComboBox, QSizePolicy, QGraphicsDropShadowEffect,
-    QLineEdit, QFileDialog, QMessageBox
+    QLineEdit, QFileDialog, QMessageBox, QApplication
 )
 from PyQt5.QtCore import Qt, QEvent, pyqtSignal
 from PyQt5.QtGui import QFont, QColor, QDoubleValidator
@@ -519,7 +519,7 @@ class SidebarPanel(QWidget):
         return card
     
     def create_pdf_report_section(self):
-        """Create the PDF report export section."""
+        """Create the 3D PDF export section."""
         card = QFrame()
         card.setObjectName("pdfReportCard")
         card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
@@ -532,14 +532,14 @@ class SidebarPanel(QWidget):
         header_layout = QHBoxLayout()
         header_layout.setSpacing(8)
         
-        title_label = QLabel("Export PDF Report")
+        title_label = QLabel("Export 3D PDF")
         title_font = QFont()
         title_font.setPointSize(14)
         title_font.setBold(True)
         title_label.setFont(title_font)
         title_label.setStyleSheet(f"color: {default_theme.text_title}; margin-bottom: 4px;")
         
-        icon_label = QLabel("📄")
+        icon_label = QLabel("📐")
         icon_label.setStyleSheet(f"color: {default_theme.icon_blue}; font-size: 16px;")
         icon_label.setAlignment(Qt.AlignCenter)
         
@@ -548,45 +548,17 @@ class SidebarPanel(QWidget):
         header_layout.addWidget(icon_label)
         card_layout.addLayout(header_layout)
         
-        # Section selection label
-        section_label = QLabel("Select report sections:")
-        section_font = QFont()
-        section_font.setPointSize(11)
-        section_label.setFont(section_font)
-        section_label.setStyleSheet(f"color: {default_theme.text_secondary};")
-        card_layout.addWidget(section_label)
-        
-        # Checkbox rows
-        self.report_dimensions_cb = ReportCheckbox(
-            "Original dimensions", 
-            checked=True, 
-            enabled=True, 
-            always_checked=True, 
-            parent=self
-        )
-        self.report_dimensions_cb.set_status("Always included")
-        card_layout.addWidget(self.report_dimensions_cb)
-        
-        self.report_surface_area_cb = ReportCheckbox(
-            "Total surface area", 
-            checked=True, 
-            enabled=False, 
-            parent=self
-        )
-        self.report_surface_area_cb.set_status("Load STL first")
-        card_layout.addWidget(self.report_surface_area_cb)
-        
-        self.report_adjusted_dims_cb = ReportCheckbox(
-            "Adjusted dimensions", 
-            checked=True, 
-            enabled=False, 
-            parent=self
-        )
-        self.report_adjusted_dims_cb.set_status("Calculate scale first")
-        card_layout.addWidget(self.report_adjusted_dims_cb)
+        # Description
+        desc_label = QLabel("Export model with multiple view angles and dimensions.")
+        desc_font = QFont()
+        desc_font.setPointSize(11)
+        desc_label.setFont(desc_font)
+        desc_label.setStyleSheet(f"color: {default_theme.text_secondary};")
+        desc_label.setWordWrap(True)
+        card_layout.addWidget(desc_label)
         
         # Export button
-        self.export_pdf_btn = QPushButton("Generate PDF Report")
+        self.export_pdf_btn = QPushButton("Export 3D PDF")
         self.export_pdf_btn.setObjectName("exportPdfBtn")
         self.export_pdf_btn.setMinimumHeight(44)
         self.export_pdf_btn.setEnabled(False)
@@ -636,7 +608,7 @@ class SidebarPanel(QWidget):
         info_icon.setFixedWidth(18)
         info_icon.setAlignment(Qt.AlignTop)
         
-        disclaimer = QLabel("Report includes current calculated values only.")
+        disclaimer = QLabel("Includes isometric, front, side, and top views with model dimensions.")
         disclaimer_font = QFont()
         disclaimer_font.setPointSize(9)
         disclaimer.setFont(disclaimer_font)
@@ -759,10 +731,8 @@ class SidebarPanel(QWidget):
         # Enable export button
         self.export_scaled_btn.setEnabled(True)
         
-        # Update PDF report state - scaled data now available
+        # Update state - scaled data now available
         self.has_scaled_data = True
-        self.report_adjusted_dims_cb.set_enabled(True)
-        self.report_adjusted_dims_cb.set_status("")
         self.update_pdf_button_state()
     
     def reset_scale_results(self):
@@ -777,10 +747,8 @@ class SidebarPanel(QWidget):
         self.export_scaled_btn.setEnabled(False)
         self.calculated_scale_factor = 1.0
         
-        # Update PDF report state - scaled data no longer available
+        # Update state - scaled data no longer available
         self.has_scaled_data = False
-        self.report_adjusted_dims_cb.set_enabled(False)
-        self.report_adjusted_dims_cb.set_status("Calculate scale first")
         self.update_pdf_button_state()
     
     def export_scaled_stl_file(self):
@@ -824,10 +792,6 @@ class SidebarPanel(QWidget):
             self.calculate_weight()
             self.reset_scale_results()
             self.calculate_scale_btn.setEnabled(False)
-            
-            # Update PDF report state
-            self.report_surface_area_cb.set_enabled(False)
-            self.report_surface_area_cb.set_status("Load STL first")
             self.update_pdf_button_state()
             return
         
@@ -867,9 +831,7 @@ class SidebarPanel(QWidget):
         # Calculate weight
         self.calculate_weight()
         
-        # Update PDF report state - STL data now available
-        self.report_surface_area_cb.set_enabled(True)
-        self.report_surface_area_cb.set_status("")
+        # Update PDF button state
         self.update_pdf_button_state()
     
     def update_pdf_button_state(self):
@@ -877,15 +839,26 @@ class SidebarPanel(QWidget):
         self.export_pdf_btn.setEnabled(self.has_stl_loaded)
     
     def export_pdf_report(self):
-        """Generate and export PDF report."""
+        """Generate and export 3D PDF with multiple views."""
         if not self.has_stl_loaded:
             return
         
+        # We need access to the current mesh - emit a signal to get it
+        # For now, we'll need to get mesh from parent
+        mesh = self._get_current_mesh()
+        if mesh is None:
+            QMessageBox.warning(
+                self,
+                "Export Error",
+                "No 3D model loaded. Please load a model first."
+            )
+            return
+        
         # Open save dialog
-        default_name = f"STL_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        default_name = f"3D_Model_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save PDF Report",
+            "Save 3D PDF",
             default_name,
             "PDF Files (*.pdf);;All Files (*)"
         )
@@ -898,158 +871,51 @@ class SidebarPanel(QWidget):
             file_path += '.pdf'
         
         try:
-            self._generate_pdf_report(file_path)
-            QMessageBox.information(
-                self,
-                "Report Generated",
-                f"PDF report saved successfully:\n{file_path}"
+            from core.pdf3d_exporter import PDF3DExporter
+            
+            # Show progress message
+            self.export_pdf_btn.setEnabled(False)
+            self.export_pdf_btn.setText("Exporting...")
+            QApplication.processEvents()
+            
+            success, result = PDF3DExporter.export_3d_pdf(
+                mesh, 
+                file_path, 
+                title=self.current_stl_filename
             )
+            
+            # Restore button
+            self.export_pdf_btn.setEnabled(True)
+            self.export_pdf_btn.setText("Export 3D PDF")
+            
+            if success:
+                QMessageBox.information(
+                    self,
+                    "Export Complete",
+                    f"3D PDF exported successfully:\n{file_path}"
+                )
+            else:
+                QMessageBox.critical(
+                    self,
+                    "Export Error",
+                    f"Failed to export 3D PDF:\n{result}"
+                )
         except Exception as e:
-            logger.error(f"Error generating PDF report: {e}")
+            logger.error(f"Error exporting 3D PDF: {e}")
+            self.export_pdf_btn.setEnabled(True)
+            self.export_pdf_btn.setText("Export 3D PDF")
             QMessageBox.critical(
                 self,
                 "Export Error",
-                f"Failed to generate PDF report:\n{str(e)}"
+                f"Failed to export 3D PDF:\n{str(e)}"
             )
     
-    def _generate_pdf_report(self, file_path):
-        """Generate the PDF report file."""
-        from reportlab.lib import colors
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import mm
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-        from reportlab.lib.enums import TA_CENTER, TA_LEFT
-        
-        # Create document
-        doc = SimpleDocTemplate(
-            file_path,
-            pagesize=A4,
-            rightMargin=20*mm,
-            leftMargin=20*mm,
-            topMargin=20*mm,
-            bottomMargin=20*mm
-        )
-        
-        # Styles
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=20,
-            spaceAfter=12,
-            alignment=TA_CENTER,
-            textColor=colors.HexColor('#1E293B')
-        )
-        subtitle_style = ParagraphStyle(
-            'CustomSubtitle',
-            parent=styles['Normal'],
-            fontSize=10,
-            spaceAfter=20,
-            alignment=TA_CENTER,
-            textColor=colors.HexColor('#64748B')
-        )
-        section_style = ParagraphStyle(
-            'SectionTitle',
-            parent=styles['Heading2'],
-            fontSize=14,
-            spaceBefore=16,
-            spaceAfter=8,
-            textColor=colors.HexColor('#1E293B')
-        )
-        
-        # Build content
-        story = []
-        
-        # Title
-        story.append(Paragraph("STL Analysis Report", title_style))
-        
-        # Subtitle with file info and date
-        subtitle_text = f"File: {self.current_stl_filename or 'Unknown'} | Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        story.append(Paragraph(subtitle_text, subtitle_style))
-        story.append(Spacer(1, 10))
-        
-        # Table styling
-        table_style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F0F7FF')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#1E293B')),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 11),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('LEFTPADDING', (0, 0), (-1, -1), 12),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-        ])
-        
-        col_widths = [90*mm, 70*mm]
-        
-        # Original Dimensions (always included)
-        story.append(Paragraph("Original Dimensions", section_style))
-        dim_data = [
-            ['Property', 'Value'],
-            ['Length (X)', f"{self.current_dimensions['width']:.2f} mm"],
-            ['Width (Y)', f"{self.current_dimensions['height']:.2f} mm"],
-            ['Height (Z)', f"{self.current_dimensions['depth']:.2f} mm"],
-            ['Volume', f"{self.current_volume_mm3:.2f} mm³"],
-        ]
-        dim_table = Table(dim_data, colWidths=col_widths)
-        dim_table.setStyle(table_style)
-        story.append(dim_table)
-        
-        # Surface Area (if checkbox selected and available)
-        if self.report_surface_area_cb.is_checked() and self.current_surface_area_cm2 > 0:
-            story.append(Spacer(1, 8))
-            story.append(Paragraph("Surface Area (Galvanizing Data)", section_style))
-            surface_data = [
-                ['Property', 'Value'],
-                ['Total Surface Area', f"{self.current_surface_area_cm2:.2f} cm²"],
-            ]
-            surface_table = Table(surface_data, colWidths=col_widths)
-            surface_table.setStyle(table_style)
-            story.append(surface_table)
-        
-        # Adjusted Dimensions (if checkbox selected and scaling applied)
-        if self.report_adjusted_dims_cb.is_checked() and self.has_scaled_data:
-            story.append(Spacer(1, 8))
-            story.append(Paragraph("Adjusted Dimensions", section_style))
-            
-            # Get current adjusted values from display
-            adjusted_data = [
-                ['Property', 'Value'],
-                ['Scale Factor', self.scale_factor_row.value_label.text()],
-                ['New Length (X)', self.new_x_row.value_label.text()],
-                ['New Width (Y)', self.new_y_row.value_label.text()],
-                ['New Height (Z)', self.new_z_row.value_label.text()],
-                ['New Volume', self.new_volume_row.value_label.text()],
-            ]
-            adjusted_table = Table(adjusted_data, colWidths=col_widths)
-            adjusted_table.setStyle(table_style)
-            story.append(adjusted_table)
-            
-            # Weight comparison
-            story.append(Spacer(1, 8))
-            story.append(Paragraph("Weight Comparison", section_style))
-            
-            # Get material name
-            material_index = self.material_combo.currentIndex()
-            material_name = self.MATERIALS[material_index][0] if 0 <= material_index < len(self.MATERIALS) else "Unknown"
-            
-            weight_data = [
-                ['Property', 'Value'],
-                ['Material', material_name],
-                ['Original Weight', self.original_weight_row.value_label.text()],
-                ['Target Weight', self.target_weight_row.value_label.text()],
-            ]
-            weight_table = Table(weight_data, colWidths=col_widths)
-            weight_table.setStyle(table_style)
-            story.append(weight_table)
-        
-        # Build PDF
-        doc.build(story)
+    def _get_current_mesh(self):
+        """Get the current mesh from the viewer widget."""
+        # Navigate up to find the main window and get mesh from viewer
+        parent = self.parent()
+        while parent is not None:
+            if hasattr(parent, 'viewer_widget') and hasattr(parent.viewer_widget, 'current_mesh'):
+                return parent.viewer_widget.current_mesh
+            parent = parent.parent()
+        return None
