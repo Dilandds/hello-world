@@ -88,6 +88,7 @@ class STLViewerWindow(QMainWindow):
         self.sidebar_panel = SidebarPanel()
         self.sidebar_panel.upload_btn.clicked.connect(self.upload_stl_file)
         self.sidebar_panel.export_scaled_stl.connect(self.export_scaled_stl)
+        self.sidebar_panel.export_3d_pdf_requested.connect(self.export_3d_pdf)
         splitter.addWidget(self.sidebar_panel)
         logger.info("init_ui: Sidebar panel created")
         
@@ -434,6 +435,100 @@ class STLViewerWindow(QMainWindow):
                 )
         except Exception as e:
             logger.error(f"export_scaled_stl: Error during export: {e}", exc_info=True)
+            QMessageBox.critical(
+                self,
+                "Export Error",
+                f"Error during export:\n{str(e)}"
+            )
+    
+    def export_3d_pdf(self, file_path, export_type, mesh_info):
+        """Export a 3D PDF with the current mesh."""
+        logger.info(f"export_3d_pdf: Exporting 3D PDF to {file_path} (type: {export_type})")
+        
+        if not hasattr(self.viewer_widget, 'current_mesh') or self.viewer_widget.current_mesh is None:
+            logger.error("export_3d_pdf: No mesh loaded")
+            QMessageBox.warning(
+                self,
+                "No Mesh Loaded",
+                "Please load a 3D file first before exporting."
+            )
+            return
+        
+        try:
+            from core.pdf3d_exporter import PDF3DExporter
+            
+            mesh = self.viewer_widget.current_mesh
+            title = f"3D Model - {Path(file_path).stem}"
+            
+            if export_type == 'interactive':
+                # Try interactive 3D PDF first
+                deps = PDF3DExporter.check_dependencies()
+                
+                if not deps['vtk_u3d']:
+                    # Fallback to static if vtk-u3dexporter not available
+                    logger.warning("vtk-u3dexporter not available, using static export")
+                    result = PDF3DExporter.create_static_3d_pdf(
+                        mesh, file_path, title, mesh_info
+                    )
+                    if result['success']:
+                        QMessageBox.information(
+                            self,
+                            "Export Successful",
+                            f"3D PDF (static views) exported successfully:\n{file_path}\n\n"
+                            "Note: Interactive 3D requires vtk-u3dexporter package."
+                        )
+                    else:
+                        QMessageBox.critical(
+                            self,
+                            "Export Error",
+                            f"Failed to export 3D PDF:\n{result['message']}"
+                        )
+                else:
+                    # Full interactive export
+                    result = PDF3DExporter.export_mesh_to_3d_pdf(
+                        mesh, file_path, title, mesh_info
+                    )
+                    if result['success']:
+                        QMessageBox.information(
+                            self,
+                            "Export Successful",
+                            f"Interactive 3D PDF exported successfully:\n{file_path}\n\n"
+                            "Open with Adobe Acrobat Reader to interact with the 3D model."
+                        )
+                    else:
+                        QMessageBox.critical(
+                            self,
+                            "Export Error",
+                            f"Failed to export 3D PDF:\n{result['message']}"
+                        )
+            else:
+                # Static views export
+                result = PDF3DExporter.create_static_3d_pdf(
+                    mesh, file_path, title, mesh_info
+                )
+                if result['success']:
+                    QMessageBox.information(
+                        self,
+                        "Export Successful",
+                        f"3D PDF with static views exported successfully:\n{file_path}"
+                    )
+                else:
+                    QMessageBox.critical(
+                        self,
+                        "Export Error",
+                        f"Failed to export 3D PDF:\n{result['message']}"
+                    )
+                    
+        except ImportError as e:
+            logger.error(f"export_3d_pdf: Missing dependency: {e}")
+            QMessageBox.critical(
+                self,
+                "Missing Dependency",
+                f"Required package not installed:\n{str(e)}\n\n"
+                "Install with: pip install vtk-u3dexporter reportlab"
+            )
+        except Exception as e:
+            logger.error(f"export_3d_pdf: Error during export: {e}", exc_info=True)
             QMessageBox.critical(
                 self,
                 "Export Error",

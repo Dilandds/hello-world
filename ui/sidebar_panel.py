@@ -23,6 +23,9 @@ class SidebarPanel(QWidget):
     # Signal emitted when export is requested (file_path, scale_factor)
     export_scaled_stl = pyqtSignal(str, float)
     
+    # Signal emitted when 3D PDF export is requested (file_path, export_type, mesh_info)
+    export_3d_pdf_requested = pyqtSignal(str, str, dict)
+    
     # Material density data (g/cm³)
     MATERIALS = [
         ("24 carat gold (999)", 19.32),
@@ -154,6 +157,10 @@ class SidebarPanel(QWidget):
         # Create PDF Report section
         self.pdf_report_group = self.create_pdf_report_section()
         layout.addWidget(self.pdf_report_group)
+        
+        # Create 3D PDF Export section
+        self.pdf_3d_group = self.create_3d_pdf_section()
+        layout.addWidget(self.pdf_3d_group)
         
         # Add stretch
         layout.addStretch()
@@ -654,6 +661,138 @@ class SidebarPanel(QWidget):
         
         return card
     
+    def create_3d_pdf_section(self):
+        """Create the 3D PDF export section."""
+        card = QFrame()
+        card.setObjectName("pdf3dCard")
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 16, 16, 16)
+        card_layout.setSpacing(10)
+        
+        # Header row with title and icon
+        header_layout = QHBoxLayout()
+        header_layout.setSpacing(8)
+        
+        title_label = QLabel("Export 3D PDF")
+        title_font = QFont()
+        title_font.setPointSize(14)
+        title_font.setBold(True)
+        title_label.setFont(title_font)
+        title_label.setStyleSheet(f"color: {default_theme.text_title}; margin-bottom: 4px;")
+        
+        icon_label = QLabel("📐")
+        icon_label.setStyleSheet(f"color: {default_theme.icon_blue}; font-size: 16px;")
+        icon_label.setAlignment(Qt.AlignCenter)
+        
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
+        header_layout.addWidget(icon_label)
+        card_layout.addLayout(header_layout)
+        
+        # Description
+        desc_label = QLabel("Export an interactive 3D PDF that can be viewed and rotated in Adobe Reader.")
+        desc_font = QFont()
+        desc_font.setPointSize(10)
+        desc_label.setFont(desc_font)
+        desc_label.setStyleSheet(f"color: {default_theme.text_secondary};")
+        desc_label.setWordWrap(True)
+        card_layout.addWidget(desc_label)
+        
+        # Export type selection
+        type_layout = QHBoxLayout()
+        type_layout.setSpacing(8)
+        
+        type_label = QLabel("Export type:")
+        type_label.setStyleSheet(f"color: {default_theme.text_primary};")
+        
+        self.pdf_3d_type_combo = QComboBox()
+        self.pdf_3d_type_combo.setObjectName("pdf3dTypeCombo")
+        self.pdf_3d_type_combo.addItem("Interactive 3D (U3D)", "interactive")
+        self.pdf_3d_type_combo.addItem("Static Views (4 angles)", "static")
+        self.pdf_3d_type_combo.setMinimumHeight(36)
+        self.pdf_3d_type_combo.setToolTip("Interactive requires vtk-u3dexporter; Static works with any setup")
+        
+        type_layout.addWidget(type_label)
+        type_layout.addWidget(self.pdf_3d_type_combo, 1)
+        card_layout.addLayout(type_layout)
+        
+        # Export button
+        self.export_3d_pdf_btn = QPushButton("Export 3D PDF")
+        self.export_3d_pdf_btn.setObjectName("export3dPdfBtn")
+        self.export_3d_pdf_btn.setMinimumHeight(44)
+        self.export_3d_pdf_btn.setEnabled(False)
+        self.export_3d_pdf_btn.setStyleSheet(f"""
+            QPushButton#export3dPdfBtn {{
+                background-color: #7c3aed;
+                color: {default_theme.text_white};
+                border: none;
+                border-radius: 8px;
+                padding: 10px 16px;
+                font-size: 13px;
+                font-weight: bold;
+            }}
+            QPushButton#export3dPdfBtn:hover {{
+                background-color: #6d28d9;
+            }}
+            QPushButton#export3dPdfBtn:pressed {{
+                background-color: #5b21b6;
+            }}
+            QPushButton#export3dPdfBtn:disabled {{
+                background-color: {default_theme.button_default_bg};
+                color: {default_theme.text_primary};
+            }}
+        """)
+        self.export_3d_pdf_btn.clicked.connect(self.export_3d_pdf)
+        card_layout.addWidget(self.export_3d_pdf_btn)
+        
+        # Status label
+        self.pdf_3d_status_label = QLabel("Load a 3D file first")
+        self.pdf_3d_status_label.setStyleSheet(f"color: {default_theme.text_secondary}; font-size: 10px;")
+        self.pdf_3d_status_label.setAlignment(Qt.AlignCenter)
+        card_layout.addWidget(self.pdf_3d_status_label)
+        
+        # Information footer
+        footer_frame = QFrame()
+        footer_frame.setObjectName("pdf3dFooter")
+        footer_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        footer_frame.setMinimumHeight(36)
+        footer_frame.setStyleSheet(f"""
+            QFrame#pdf3dFooter {{
+                background-color: {default_theme.background};
+                border: 1px solid {default_theme.border_standard};
+                border-radius: 6px;
+            }}
+        """)
+        
+        footer_layout = QHBoxLayout(footer_frame)
+        footer_layout.setContentsMargins(10, 6, 10, 6)
+        footer_layout.setSpacing(8)
+        
+        info_icon = QLabel("ℹ️")
+        info_icon.setStyleSheet(f"color: {default_theme.icon_info_gray}; font-size: 11px;")
+        info_icon.setFixedWidth(18)
+        info_icon.setAlignment(Qt.AlignTop)
+        
+        disclaimer = QLabel("Interactive 3D PDF requires Adobe Acrobat Reader to view.")
+        disclaimer_font = QFont()
+        disclaimer_font.setPointSize(9)
+        disclaimer.setFont(disclaimer_font)
+        disclaimer.setStyleSheet(f"color: {default_theme.icon_info_gray};")
+        disclaimer.setWordWrap(True)
+        
+        footer_layout.addWidget(info_icon)
+        footer_layout.addWidget(disclaimer)
+        footer_layout.addStretch()
+        
+        card_layout.addWidget(footer_frame)
+        
+        # Add shadow effect
+        self._add_card_shadow(card)
+        
+        return card
+    
     def eventFilter(self, obj, event):
         """Handle hover events for rows."""
         # Rows handle their own events, but we need to ensure they're installed
@@ -873,8 +1012,17 @@ class SidebarPanel(QWidget):
         self.update_pdf_button_state()
     
     def update_pdf_button_state(self):
-        """Update the PDF export button based on available data."""
+        """Update the PDF export buttons based on available data."""
         self.export_pdf_btn.setEnabled(self.has_stl_loaded)
+        self.export_3d_pdf_btn.setEnabled(self.has_stl_loaded)
+        
+        # Update 3D PDF status label
+        if self.has_stl_loaded:
+            self.pdf_3d_status_label.setText("Ready to export")
+            self.pdf_3d_status_label.setStyleSheet(f"color: #10b981; font-size: 10px;")
+        else:
+            self.pdf_3d_status_label.setText("Load a 3D file first")
+            self.pdf_3d_status_label.setStyleSheet(f"color: {default_theme.text_secondary}; font-size: 10px;")
     
     def export_pdf_report(self):
         """Generate and export PDF report."""
@@ -911,6 +1059,42 @@ class SidebarPanel(QWidget):
                 "Export Error",
                 f"Failed to generate PDF report:\n{str(e)}"
             )
+    
+    def export_3d_pdf(self):
+        """Export 3D PDF with interactive or static views."""
+        if not self.has_stl_loaded:
+            return
+        
+        # Get export type
+        export_type = self.pdf_3d_type_combo.currentData()
+        
+        # Open save dialog
+        default_name = f"3D_Model_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save 3D PDF",
+            default_name,
+            "PDF Files (*.pdf);;All Files (*)"
+        )
+        
+        if not file_path:
+            return
+        
+        # Ensure .pdf extension
+        if not file_path.lower().endswith('.pdf'):
+            file_path += '.pdf'
+        
+        # Prepare mesh info
+        mesh_info = {
+            'dimensions': self.current_dimensions,
+            'volume': self.current_volume_mm3,
+            'surface_area': self.current_surface_area_cm2,
+            'weight': self.current_weight_grams,
+            'material': self.material_combo.currentText().split(' (')[0] if self.material_combo.currentIndex() >= 0 else 'Unknown'
+        }
+        
+        # Emit signal to request mesh from parent
+        self.export_3d_pdf_requested.emit(file_path, export_type, mesh_info)
     
     def _generate_pdf_report(self, file_path):
         """Generate the PDF report file."""
