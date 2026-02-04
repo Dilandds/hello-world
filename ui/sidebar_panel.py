@@ -549,7 +549,7 @@ class SidebarPanel(QWidget):
         card_layout.addLayout(header_layout)
         
         # Description
-        desc_label = QLabel("Export model with multiple view angles and dimensions.")
+        desc_label = QLabel("Export interactive 3D PDF for Adobe Acrobat Reader.\nRotate, pan, and zoom the model inside the PDF.")
         desc_font = QFont()
         desc_font.setPointSize(11)
         desc_label.setFont(desc_font)
@@ -608,7 +608,7 @@ class SidebarPanel(QWidget):
         info_icon.setFixedWidth(18)
         info_icon.setAlignment(Qt.AlignTop)
         
-        disclaimer = QLabel("Includes isometric, front, side, and top views with model dimensions.")
+        disclaimer = QLabel("Requires Adobe Acrobat Reader for interactive 3D. Install vtk-u3dexporter for best results.")
         disclaimer_font = QFont()
         disclaimer_font.setPointSize(9)
         disclaimer.setFont(disclaimer_font)
@@ -878,7 +878,7 @@ class SidebarPanel(QWidget):
             self.export_pdf_btn.setText("Exporting...")
             QApplication.processEvents()
             
-            success, result = PDF3DExporter.export_3d_pdf(
+            success, result = PDF3DExporter.export_interactive_3d_pdf(
                 mesh, 
                 file_path, 
                 title=self.current_stl_filename
