@@ -881,7 +881,8 @@ class SidebarPanel(QWidget):
             success, result = PDF3DExporter.export_interactive_3d_pdf(
                 mesh, 
                 file_path, 
-                title=self.current_stl_filename
+                title=self.current_stl_filename,
+                allow_static_fallback=False,
             )
             
             # Restore button
@@ -895,19 +896,34 @@ class SidebarPanel(QWidget):
                     f"3D PDF exported successfully:\n{file_path}"
                 )
             else:
+                # Help the user quickly find detailed exporter logs
+                try:
+                    app_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+                    log_path = os.path.join(app_root, "app_debug.log")
+                except Exception:
+                    log_path = "app_debug.log"
+
                 QMessageBox.critical(
                     self,
                     "Export Error",
-                    f"Failed to export 3D PDF:\n{result}"
+                    f"Failed to export interactive 3D PDF:\n{result}\n\n"
+                    f"Detailed logs: {log_path}"
                 )
         except Exception as e:
             logger.error(f"Error exporting 3D PDF: {e}")
             self.export_pdf_btn.setEnabled(True)
             self.export_pdf_btn.setText("Export 3D PDF")
+
+            try:
+                app_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+                log_path = os.path.join(app_root, "app_debug.log")
+            except Exception:
+                log_path = "app_debug.log"
+
             QMessageBox.critical(
                 self,
                 "Export Error",
-                f"Failed to export 3D PDF:\n{str(e)}"
+                f"Failed to export interactive 3D PDF:\n{str(e)}\n\nDetailed logs: {log_path}"
             )
     
     def _get_current_mesh(self):
