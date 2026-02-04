@@ -12,6 +12,8 @@ import logging
 import tempfile
 import os
 import zlib
+import sys
+import platform
 
 logger = logging.getLogger(__name__)
 
@@ -27,40 +29,71 @@ class PDF3DExporter:
     @staticmethod
     def _get_vtk_u3d_exporter_cls():
         """Return vtkU3DExporter class if available in the current VTK build, else None."""
+        errors = []
+
         # Prefer vtkmodules import (modern VTK wheels)
         try:
             from vtkmodules.vtkIOExport import vtkU3DExporter  # type: ignore
 
+            logger.debug("vtkU3DExporter resolved via vtkmodules.vtkIOExport")
             return vtkU3DExporter
-        except Exception:
-            pass
+        except Exception as e:
+            errors.append(("vtkmodules.vtkIOExport", repr(e)))
+            logger.debug("vtkU3DExporter not available via vtkmodules.vtkIOExport: %s", e, exc_info=True)
 
         # Fallbacks (older / alternate layouts)
         try:
             import vtk  # type: ignore
 
             if hasattr(vtk, "vtkU3DExporter"):
+                logger.debug("vtkU3DExporter resolved via vtk.vtkU3DExporter")
                 return vtk.vtkU3DExporter
-        except Exception:
-            pass
+        except Exception as e:
+            errors.append(("vtk (hasattr)", repr(e)))
+            logger.debug("vtk import/hasattr(vtkU3DExporter) failed: %s", e, exc_info=True)
 
         try:
             from vtk import vtkU3DExporter  # type: ignore
 
+            logger.debug("vtkU3DExporter resolved via 'from vtk import vtkU3DExporter'")
             return vtkU3DExporter
-        except Exception:
-            return None
+        except Exception as e:
+            errors.append(("vtk direct", repr(e)))
+            logger.debug("vtkU3DExporter not available via 'from vtk import vtkU3DExporter': %s", e, exc_info=True)
+
+        if errors:
+            logger.debug("vtkU3DExporter resolution attempts failed: %s", errors)
+        return None
+
+    @staticmethod
+    def _log_runtime_context():
+        """Log runtime and VTK context to help diagnose U3D export availability."""
+        logger.info(
+            "3D PDF runtime context | python=%s | platform=%s | executable=%s",
+            sys.version.replace("\n", " "),
+            platform.platform(),
+            sys.executable,
+        )
+        try:
+            import vtk  # type: ignore
+
+            vtk_ver = vtk.vtkVersion.GetVTKVersion()
+            logger.info("VTK detected | version=%s | vtk_file=%s", vtk_ver, getattr(vtk, "__file__", "<unknown>"))
+        except Exception as e:
+            logger.warning("VTK import failed while checking U3D availability: %s", e, exc_info=True)
 
     @staticmethod
     def check_u3d_exporter():
         """Check if vtkU3DExporter is available (via installed VTK)."""
+        PDF3DExporter._log_runtime_context()
         cls = PDF3DExporter._get_vtk_u3d_exporter_cls()
         if cls is None:
             return (
                 False,
                 "vtkU3DExporter is not available in your VTK build. "
-                "Install/upgrade VTK (pip install -U vtk) or use the static PDF fallback.",
+                "Install/upgrade VTK (pip install -U vtk).",
             )
+        logger.info("vtkU3DExporter available: %s", getattr(cls, "__name__", str(cls)))
         return True, "vtkU3DExporter available via VTK"
 
     @staticmethod
@@ -79,7 +112,22 @@ class PDF3DExporter:
 
             exporter_cls = PDF3DExporter._get_vtk_u3d_exporter_cls()
             if exporter_cls is None:
+                logger.error("mesh_to_u3d: vtkU3DExporter not available (output_base=%s)", output_path_base)
                 return False, "vtkU3DExporter not available"
+
+            # Mesh diagnostics
+            try:
+                mesh_type = type(mesh).__name__
+                n_points = getattr(mesh, "GetNumberOfPoints", lambda: None)()
+                n_cells = getattr(mesh, "GetNumberOfCells", lambda: None)()
+                logger.info(
+                    "mesh_to_u3d: mesh=%s points=%s cells=%s",
+                    mesh_type,
+                    n_points,
+                    n_cells,
+                )
+            except Exception:
+                logger.debug("mesh_to_u3d: unable to read mesh diagnostics", exc_info=True)
 
             # Off-screen render window
             render_window = vtk.vtkRenderWindow()
@@ -105,6 +153,11 @@ class PDF3DExporter:
 
             exporter = exporter_cls()
             exporter.SetFileName(output_path_base)
+            logger.info(
+                "mesh_to_u3d: using exporter=%s output_base=%s",
+                getattr(exporter_cls, "__name__", str(exporter_cls)),
+                output_path_base,
+            )
 
             # API differs across builds
             if hasattr(exporter, "SetInput"):
@@ -116,24 +169,40 @@ class PDF3DExporter:
 
             exporter.Write()
 
+            logger.info("mesh_to_u3d: exporter.Write() returned; checking output files...")
+
             candidates = [f"{output_path_base}.u3d", output_path_base]
             for cand in candidates:
                 if os.path.exists(cand):
+                    try:
+                        size = os.path.getsize(cand)
+                        logger.info("mesh_to_u3d: U3D created: %s (bytes=%d)", cand, size)
+                        if size < 1024:
+                            logger.warning("mesh_to_u3d: U3D file is unexpectedly small (%d bytes): %s", size, cand)
+                    except Exception:
+                        logger.debug("mesh_to_u3d: could not stat output candidate: %s", cand, exc_info=True)
                     return True, cand
+
+            logger.error("mesh_to_u3d: U3D export failed - no candidate files created (base=%s)", output_path_base)
             return False, "U3D export failed - file not created"
 
         except Exception as e:
-            logger.error(f"Failed to export U3D: {e}")
+            logger.error("Failed to export U3D: %s", e, exc_info=True)
             return False, str(e)
 
     @staticmethod
     def create_3d_pdf(u3d_path, output_pdf_path, title="3D Model", mesh_info=None):
         """Create a PDF with an embedded interactive 3D (U3D) annotation."""
         try:
+            logger.info("create_3d_pdf: u3d_path=%s output_pdf_path=%s title=%s", u3d_path, output_pdf_path, title)
             with open(u3d_path, "rb") as f:
                 u3d_data = f.read()
 
+            logger.info("create_3d_pdf: U3D input bytes=%d", len(u3d_data))
+
             compressed_u3d = zlib.compress(u3d_data)
+
+            logger.info("create_3d_pdf: U3D compressed bytes=%d", len(compressed_u3d))
 
             pdf_objects = []
 
@@ -258,30 +327,41 @@ ET
                 f.write(xref_bytes)
                 f.write(trailer)
 
+            try:
+                logger.info("create_3d_pdf: PDF written (bytes=%d)", os.path.getsize(output_pdf_path))
+            except Exception:
+                logger.debug("create_3d_pdf: could not stat output PDF", exc_info=True)
+
             return True, output_pdf_path
 
         except Exception as e:
-            logger.error(f"Failed to create 3D PDF: {e}")
+            logger.error("Failed to create 3D PDF: %s", e, exc_info=True)
             return False, str(e)
 
     @staticmethod
-    def export_interactive_3d_pdf(mesh, output_path, title="3D Model"):
-        """Export mesh to an interactive 3D PDF when possible, otherwise fall back to static."""
+    def export_interactive_3d_pdf(mesh, output_path, title="3D Model", allow_static_fallback: bool = True):
+        """Export mesh to an interactive 3D PDF; optionally fall back to static when unavailable."""
         if mesh is None:
             return False, "No mesh provided"
 
         available, msg = PDF3DExporter.check_u3d_exporter()
         if not available:
-            logger.warning(msg)
-            return PDF3DExporter.export_static_3d_pdf(mesh, output_path, title)
+            logger.error("Interactive 3D PDF export not available: %s", msg)
+            if allow_static_fallback:
+                logger.warning("Falling back to static PDF due to missing U3D exporter")
+                return PDF3DExporter.export_static_3d_pdf(mesh, output_path, title)
+            return False, msg
 
         temp_dir = tempfile.mkdtemp()
         try:
             u3d_base = os.path.join(temp_dir, "model")
             success, u3d_path_or_err = PDF3DExporter.mesh_to_u3d(mesh, u3d_base)
             if not success:
-                logger.warning(f"U3D export failed: {u3d_path_or_err}; falling back to static")
-                return PDF3DExporter.export_static_3d_pdf(mesh, output_path, title)
+                logger.error("U3D export failed: %s", u3d_path_or_err)
+                if allow_static_fallback:
+                    logger.warning("Falling back to static PDF due to U3D export failure")
+                    return PDF3DExporter.export_static_3d_pdf(mesh, output_path, title)
+                return False, f"U3D export failed: {u3d_path_or_err}"
 
             from core.mesh_calculator import MeshCalculator
 
@@ -527,4 +607,5 @@ ET
         Returns:
             tuple: (bool, str) - (success, error_message or output_path)
         """
+        # include_views kept for backward compatibility; interactive-first behavior preserved.
         return PDF3DExporter.export_interactive_3d_pdf(mesh, output_path, title)
