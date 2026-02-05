@@ -86,6 +86,14 @@ class STLViewerWidget(QWidget):
         # Ruler picking internals (VTK observer-based; more reliable than PyVista helpers in QtInteractor)
         self._ruler_click_observer_id = None
         self._ruler_picker = None
+        
+        # Annotation mode state
+        self.annotation_mode = False
+        self.annotations = []  # List of annotation data: {'id': int, 'point': tuple, 'actor': vtk_actor}
+        self.annotation_actors = []  # Track annotation marker actors
+        self._annotation_click_observer_id = None
+        self._annotation_picker = None
+        self._annotation_callback = None  # Callback when point is picked for annotation
 
         debug_print("STLViewerWidget: Basic initialization complete, QtInteractor will be created after window is shown")
         logger.info("STLViewerWidget: Basic initialization complete, QtInteractor will be created after window is shown")
@@ -1103,3 +1111,299 @@ class STLViewerWidget(QWidget):
             logger.info("view_rear_ortho: Rear orthographic view set")
         except Exception as e:
             logger.warning(f"view_rear_ortho: Could not set view: {e}")
+    
+    # ========== Annotation Mode Methods ==========
+    
+    def enable_annotation_mode(self, callback=None):
+        """Enable annotation mode for adding 3D point annotations.
+        
+        Args:
+            callback: Function to call when a point is picked. Receives (point_tuple,).
+        """
+        if self.plotter is None:
+            logger.warning("enable_annotation_mode: Plotter not initialized")
+            return False
+        
+        if self.current_mesh is None:
+            logger.warning("enable_annotation_mode: No mesh loaded")
+            return False
+        
+        logger.info("enable_annotation_mode: Enabling annotation mode...")
+        self.annotation_mode = True
+        self._annotation_callback = callback
+        
+        # Disable ruler mode if active
+        if self.ruler_mode:
+            self.disable_ruler_mode()
+        
+        # Install click picking for annotations
+        if self._install_annotation_click_picking():
+            logger.info("enable_annotation_mode: Annotation mode enabled")
+            return True
+        
+        logger.warning("enable_annotation_mode: Failed to install picking")
+        self.annotation_mode = False
+        return False
+    
+    def disable_annotation_mode(self):
+        """Disable annotation mode."""
+        if self.plotter is None:
+            return
+        
+        logger.info("disable_annotation_mode: Disabling annotation mode...")
+        self.annotation_mode = False
+        self._annotation_callback = None
+        
+        # Remove our observer
+        self._uninstall_annotation_click_picking()
+        
+        try:
+            self.plotter.disable_picking()
+        except Exception:
+            pass
+        
+        logger.info("disable_annotation_mode: Annotation mode disabled")
+    
+    def _install_annotation_click_picking(self) -> bool:
+        """Install VTK observer for annotation point picking."""
+        try:
+            import vtk
+        except ImportError as e:
+            logger.warning(f"_install_annotation_click_picking: vtk import failed: {e}")
+            return False
+        
+        iren = self._get_vtk_interactor()
+        if iren is None:
+            logger.warning("_install_annotation_click_picking: Could not get VTK interactor")
+            return False
+        
+        # Remove any previous observer
+        self._uninstall_annotation_click_picking()
+        
+        # Create picker
+        self._annotation_picker = vtk.vtkCellPicker()
+        try:
+            self._annotation_picker.SetTolerance(0.01)
+        except Exception:
+            pass
+        
+        # Restrict to model actor
+        if self.current_actor is not None:
+            try:
+                self.current_actor.SetPickable(True)
+                self._annotation_picker.PickFromListOn()
+                self._annotation_picker.AddPickList(self.current_actor)
+            except Exception as e:
+                logger.debug(f"_install_annotation_click_picking: Could not restrict pick list: {e}")
+                try:
+                    self._annotation_picker.PickFromListOff()
+                except Exception:
+                    pass
+        
+        try:
+            self._annotation_click_observer_id = iren.AddObserver(
+                "LeftButtonPressEvent",
+                self._on_annotation_left_click,
+                1.0,
+            )
+            logger.info("_install_annotation_click_picking: VTK click observer installed")
+            return True
+        except Exception as e:
+            logger.error(f"_install_annotation_click_picking: Failed to add observer: {e}", exc_info=True)
+            self._annotation_click_observer_id = None
+            self._annotation_picker = None
+            return False
+    
+    def _uninstall_annotation_click_picking(self):
+        """Remove VTK observer for annotation picking."""
+        if self._annotation_click_observer_id is None:
+            self._annotation_picker = None
+            return
+        
+        iren = self._get_vtk_interactor()
+        try:
+            if iren is not None:
+                iren.RemoveObserver(self._annotation_click_observer_id)
+                logger.info("_uninstall_annotation_click_picking: Observer removed")
+        except Exception as e:
+            logger.debug(f"_uninstall_annotation_click_picking: Could not remove observer: {e}")
+        finally:
+            self._annotation_click_observer_id = None
+            self._annotation_picker = None
+    
+    def _on_annotation_left_click(self, obj, event):
+        """VTK callback for annotation point picking."""
+        if not self.annotation_mode or self.plotter is None or self._annotation_picker is None:
+            return
+        
+        iren = self._get_vtk_interactor()
+        if iren is None:
+            return
+        
+        try:
+            x, y = iren.GetEventPosition()
+        except Exception:
+            return
+        
+        logger.info(f"_on_annotation_left_click: click screen=({x},{y})")
+        
+        renderer = getattr(self.plotter, 'renderer', None)
+        if renderer is None:
+            try:
+                renderer = self.plotter.ren_win.GetRenderers().GetFirstRenderer()
+            except Exception:
+                renderer = None
+        
+        if renderer is None:
+            logger.info("_on_annotation_left_click: No renderer available")
+            return
+        
+        try:
+            self._annotation_picker.Pick(x, y, 0, renderer)
+            cell_id = self._annotation_picker.GetCellId()
+            if cell_id == -1:
+                logger.info(f"_on_annotation_left_click: No hit at ({x}, {y})")
+                return
+            
+            picked_world = self._annotation_picker.GetPickPosition()
+            
+            # Snap to nearest mesh vertex
+            snapped = picked_world
+            try:
+                if self.current_mesh is not None and hasattr(self.current_mesh, 'find_closest_point'):
+                    idx = self.current_mesh.find_closest_point(picked_world)
+                    snapped = self.current_mesh.points[int(idx)]
+            except Exception as e:
+                logger.debug(f"_on_annotation_left_click: Vertex snapping failed: {e}")
+            
+            point_tuple = tuple(float(c) for c in snapped)
+            logger.info(f"_on_annotation_left_click: hit at {point_tuple}")
+            
+            # Call the callback if set
+            if self._annotation_callback is not None:
+                self._annotation_callback(point_tuple)
+            
+        except Exception as e:
+            logger.error(f"_on_annotation_left_click: Picking failed: {e}", exc_info=True)
+    
+    def add_annotation_marker(self, annotation_id: int, point: tuple, color: str = '#3B82F6') -> object:
+        """Add a visible marker for an annotation point.
+        
+        Args:
+            annotation_id: Unique ID for the annotation
+            point: (x, y, z) world coordinates
+            color: Marker color (hex string)
+            
+        Returns:
+            The actor for the marker, or None if failed
+        """
+        if self.plotter is None or self.current_mesh is None:
+            return None
+        
+        try:
+            # Calculate sphere size based on mesh bounds
+            sphere_radius = self._get_measurement_marker_size() * 1.5
+            
+            sphere = pv.Sphere(radius=sphere_radius, center=point)
+            actor = self.plotter.add_mesh(
+                sphere,
+                color=color,
+                name=f'annotation_marker_{annotation_id}'
+            )
+            
+            self.annotations.append({
+                'id': annotation_id,
+                'point': point,
+                'actor': actor,
+            })
+            self.annotation_actors.append(actor)
+            
+            self.plotter.render()
+            logger.info(f"add_annotation_marker: Added marker id={annotation_id} at {point}")
+            return actor
+            
+        except Exception as e:
+            logger.error(f"add_annotation_marker: Failed: {e}", exc_info=True)
+            return None
+    
+    def update_annotation_marker_color(self, annotation_id: int, color: str):
+        """Update the color of an annotation marker.
+        
+        Args:
+            annotation_id: The annotation ID
+            color: New color (hex string)
+        """
+        for ann in self.annotations:
+            if ann['id'] == annotation_id:
+                try:
+                    ann['actor'].GetProperty().SetColor(
+                        *self._hex_to_rgb_normalized(color)
+                    )
+                    self.plotter.render()
+                    logger.info(f"update_annotation_marker_color: Updated id={annotation_id} to {color}")
+                except Exception as e:
+                    logger.warning(f"update_annotation_marker_color: Failed: {e}")
+                break
+    
+    def remove_annotation_marker(self, annotation_id: int):
+        """Remove an annotation marker by ID."""
+        if self.plotter is None:
+            return
+        
+        for i, ann in enumerate(self.annotations):
+            if ann['id'] == annotation_id:
+                try:
+                    self.plotter.remove_actor(ann['actor'])
+                    if ann['actor'] in self.annotation_actors:
+                        self.annotation_actors.remove(ann['actor'])
+                except Exception as e:
+                    logger.debug(f"remove_annotation_marker: Could not remove actor: {e}")
+                self.annotations.pop(i)
+                self.plotter.render()
+                logger.info(f"remove_annotation_marker: Removed id={annotation_id}")
+                break
+    
+    def clear_all_annotation_markers(self):
+        """Remove all annotation markers."""
+        if self.plotter is None:
+            return
+        
+        logger.info("clear_all_annotation_markers: Clearing all annotations...")
+        for ann in self.annotations:
+            try:
+                self.plotter.remove_actor(ann['actor'])
+            except Exception:
+                pass
+        
+        self.annotations = []
+        self.annotation_actors = []
+        
+        try:
+            self.plotter.render()
+        except Exception:
+            pass
+        
+        logger.info("clear_all_annotation_markers: All annotations cleared")
+    
+    def focus_on_annotation(self, annotation_id: int):
+        """Focus the camera on a specific annotation point."""
+        for ann in self.annotations:
+            if ann['id'] == annotation_id:
+                point = ann['point']
+                try:
+                    # Set camera to look at this point
+                    self.plotter.camera.focal_point = point
+                    self.plotter.reset_camera()
+                    self.plotter.render()
+                    logger.info(f"focus_on_annotation: Focused on id={annotation_id}")
+                except Exception as e:
+                    logger.warning(f"focus_on_annotation: Failed: {e}")
+                break
+    
+    def _hex_to_rgb_normalized(self, hex_color: str) -> tuple:
+        """Convert hex color to normalized RGB tuple."""
+        hex_color = hex_color.lstrip('#')
+        r = int(hex_color[0:2], 16) / 255.0
+        g = int(hex_color[2:4], 16) / 255.0
+        b = int(hex_color[4:6], 16) / 255.0
+        return (r, g, b)

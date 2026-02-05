@@ -21,6 +21,7 @@ except Exception as e:
 from ui.sidebar_panel import SidebarPanel
 from ui.toolbar import ViewControlsToolbar
 from ui.ruler_toolbar import RulerToolbar
+from ui.annotation_panel import AnnotationPanel
 from ui.styles import get_global_stylesheet, default_theme
 from core.mesh_calculator import MeshCalculator
 
@@ -115,6 +116,12 @@ class STLViewerWindow(QMainWindow):
         
         debug_print("init_ui: Creating 3D viewer widget (this may take a moment)...")
         logger.info("init_ui: Creating 3D viewer widget (this may take a moment)...")
+        
+        # Create horizontal layout for viewer + annotation panel
+        viewer_h_layout = QHBoxLayout()
+        viewer_h_layout.setContentsMargins(0, 0, 0, 0)
+        viewer_h_layout.setSpacing(0)
+        
         try:
             # Try QtInteractor first
             if not USE_OFFSCREEN:
@@ -131,7 +138,7 @@ class STLViewerWindow(QMainWindow):
             # Connect drag-and-drop signals
             self._connect_viewer_signals()
             
-            right_layout.addWidget(self.viewer_widget, 1)  # Add with stretch factor
+            viewer_h_layout.addWidget(self.viewer_widget, 1)  # Add with stretch factor
         except Exception as e:
             debug_print(f"init_ui: ERROR creating viewer widget: {e}")
             logger.error(f"init_ui: Error creating viewer widget: {e}", exc_info=True)
@@ -142,13 +149,26 @@ class STLViewerWindow(QMainWindow):
                 from viewer_widget_offscreen import STLViewerWidgetOffscreen
                 self.viewer_widget = STLViewerWidgetOffscreen()
                 self._connect_viewer_signals()
-                right_layout.addWidget(self.viewer_widget, 1)
+                viewer_h_layout.addWidget(self.viewer_widget, 1)
                 debug_print("init_ui: Offscreen renderer fallback successful")
                 logger.info("init_ui: Offscreen renderer fallback successful")
             except Exception as e2:
                 debug_print(f"init_ui: Offscreen fallback also failed: {e2}")
                 logger.error(f"init_ui: Offscreen fallback also failed: {e2}", exc_info=True)
                 raise
+        
+        # Create annotation panel (hidden by default)
+        logger.info("init_ui: Creating annotation panel...")
+        self.annotation_panel = AnnotationPanel()
+        self.annotation_panel.hide()
+        self._connect_annotation_panel_signals()
+        viewer_h_layout.addWidget(self.annotation_panel)
+        logger.info("init_ui: Annotation panel created")
+        
+        # Add viewer container to right layout
+        viewer_container = QWidget()
+        viewer_container.setLayout(viewer_h_layout)
+        right_layout.addWidget(viewer_container, 1)
         
         # Add right container to splitter
         splitter.addWidget(right_container)
@@ -177,6 +197,7 @@ class STLViewerWindow(QMainWindow):
         self.toolbar.view_top.connect(self._view_top)
         self.toolbar.toggle_fullscreen.connect(self._toggle_fullscreen)
         self.toolbar.toggle_ruler.connect(self._toggle_ruler_mode)
+        self.toolbar.toggle_annotation.connect(self._toggle_annotation_mode)
         self.toolbar.load_file.connect(self.upload_stl_file)
         self.toolbar.clear_model.connect(self._clear_current_model)
     
@@ -259,6 +280,9 @@ class STLViewerWindow(QMainWindow):
                 if mesh is not None:
                     mesh_data = MeshCalculator.get_mesh_data(mesh)
                     self.sidebar_panel.update_dimensions(mesh_data, file_path)
+            
+            # Load any existing annotations for this file
+            self._load_annotations_for_file(file_path)
     
     def _show_drop_error(self, error_msg):
         """Show an error message from drag-and-drop."""
@@ -394,6 +418,87 @@ class STLViewerWindow(QMainWindow):
         if hasattr(self.viewer_widget, 'clear_measurements'):
             self.viewer_widget.clear_measurements()
     
+    # ========== Annotation Mode Methods ==========
+    
+    def _connect_annotation_panel_signals(self):
+        """Connect annotation panel signals to handler methods."""
+        self.annotation_panel.annotation_added.connect(self._on_annotation_added)
+        self.annotation_panel.annotation_deleted.connect(self._on_annotation_deleted)
+        self.annotation_panel.annotation_read_changed.connect(self._on_annotation_read_changed)
+        self.annotation_panel.focus_annotation.connect(self._on_focus_annotation)
+        self.annotation_panel.exit_annotation_mode.connect(self._exit_annotation_mode)
+        self.annotation_panel.clear_all_requested.connect(self._clear_all_annotations)
+    
+    def _toggle_annotation_mode(self):
+        """Toggle annotation mode."""
+        if self.toolbar.annotation_mode_enabled:
+            # Enable annotation mode
+            if hasattr(self.viewer_widget, 'enable_annotation_mode'):
+                success = self.viewer_widget.enable_annotation_mode(
+                    callback=self._on_annotation_point_picked
+                )
+                if success:
+                    self.annotation_panel.show()
+                    # Exit ruler mode if active
+                    if self.toolbar.ruler_mode_enabled:
+                        self._exit_ruler_mode()
+                    logger.info("_toggle_annotation_mode: Annotation mode enabled")
+                else:
+                    # Failed to enable, reset toolbar state
+                    self.toolbar.reset_annotation_state()
+                    logger.warning("_toggle_annotation_mode: Failed to enable annotation mode")
+        else:
+            # Disable annotation mode
+            self._exit_annotation_mode()
+    
+    def _exit_annotation_mode(self):
+        """Exit annotation mode."""
+        if hasattr(self.viewer_widget, 'disable_annotation_mode'):
+            self.viewer_widget.disable_annotation_mode()
+        self.annotation_panel.hide()
+        self.toolbar.reset_annotation_state()
+        logger.info("_exit_annotation_mode: Annotation mode disabled")
+    
+    def _on_annotation_point_picked(self, point: tuple):
+        """Handle point picked for annotation."""
+        logger.info(f"_on_annotation_point_picked: Point picked at {point}")
+        
+        # Add annotation to panel (this will trigger _on_annotation_added)
+        annotation = self.annotation_panel.add_annotation(point)
+        
+        # Add visual marker to the viewer
+        if hasattr(self.viewer_widget, 'add_annotation_marker'):
+            self.viewer_widget.add_annotation_marker(annotation.id, point, '#3B82F6')
+    
+    def _on_annotation_added(self, annotation):
+        """Handle annotation added event."""
+        logger.info(f"_on_annotation_added: Annotation {annotation.id} added")
+    
+    def _on_annotation_deleted(self, annotation_id: int):
+        """Handle annotation deleted event."""
+        if hasattr(self.viewer_widget, 'remove_annotation_marker'):
+            self.viewer_widget.remove_annotation_marker(annotation_id)
+        logger.info(f"_on_annotation_deleted: Annotation {annotation_id} removed")
+    
+    def _on_focus_annotation(self, annotation_id: int):
+        """Handle focus annotation request."""
+        if hasattr(self.viewer_widget, 'focus_on_annotation'):
+            self.viewer_widget.focus_on_annotation(annotation_id)
+    
+    def _clear_all_annotations(self):
+        """Clear all annotations."""
+        if hasattr(self.viewer_widget, 'clear_all_annotation_markers'):
+            self.viewer_widget.clear_all_annotation_markers()
+        self.annotation_panel.clear_all()
+        logger.info("_clear_all_annotations: All annotations cleared")
+    
+    def _on_annotation_read_changed(self, annotation_id: int, is_read: bool):
+        """Handle annotation read status change - update marker color."""
+        if hasattr(self.viewer_widget, 'update_annotation_marker_color'):
+            color = '#10B981' if is_read else '#3B82F6'  # Green if read, blue if unread
+            self.viewer_widget.update_annotation_marker_color(annotation_id, color)
+        logger.info(f"_on_annotation_read_changed: Annotation {annotation_id} is_read={is_read}")
+    
     def _toggle_fullscreen(self):
         """Toggle fullscreen mode."""
         if self.toolbar.is_fullscreen:
@@ -502,12 +607,18 @@ class STLViewerWindow(QMainWindow):
             success = MeshCalculator.export_stl(scaled_mesh, file_path)
             
             if success:
+                # Also save annotations if any
+                annotations = self.annotation_panel.export_annotations()
+                if annotations:
+                    from core.annotation_exporter import AnnotationExporter
+                    AnnotationExporter.save_annotations(annotations, file_path)
+                    logger.info(f"export_scaled_stl: Saved {len(annotations)} annotations")
+                
                 logger.info(f"export_scaled_stl: Successfully exported to {file_path}")
-                QMessageBox.information(
-                    self,
-                    "Export Successful",
-                    f"Scaled STL file exported successfully to:\n{file_path}"
-                )
+                msg = f"Scaled STL file exported successfully to:\n{file_path}"
+                if annotations:
+                    msg += f"\n\n{len(annotations)} annotations saved."
+                QMessageBox.information(self, "Export Successful", msg)
             else:
                 logger.error(f"export_scaled_stl: Failed to export to {file_path}")
                 QMessageBox.critical(
@@ -522,6 +633,52 @@ class STLViewerWindow(QMainWindow):
                 "Export Error",
                 f"Error during export:\n{str(e)}"
             )
+    
+    def _load_annotations_for_file(self, file_path: str):
+        """Load annotations for a file if they exist."""
+        try:
+            from core.annotation_exporter import AnnotationExporter
+            
+            # Clear existing annotations first
+            self._clear_all_annotations()
+            
+            # Check if annotations exist
+            if not AnnotationExporter.annotations_exist(file_path):
+                return
+            
+            # Load annotations
+            annotations, msg = AnnotationExporter.load_annotations(file_path)
+            if annotations:
+                self.annotation_panel.load_annotations(annotations)
+                
+                # Add markers to the viewer
+                for ann_data in annotations:
+                    ann_id = ann_data['id']
+                    point = tuple(ann_data['point'])
+                    is_read = ann_data.get('is_read', False)
+                    color = '#10B981' if is_read else '#3B82F6'
+                    
+                    if hasattr(self.viewer_widget, 'add_annotation_marker'):
+                        self.viewer_widget.add_annotation_marker(ann_id, point, color)
+                
+                logger.info(f"Loaded {len(annotations)} annotations for {file_path}")
+                
+        except Exception as e:
+            logger.warning(f"Failed to load annotations: {e}")
+    
+    def save_current_annotations(self):
+        """Save current annotations to the sidecar file."""
+        # Get the current file path from window title
+        title = self.windowTitle()
+        if " - " not in title:
+            return False
+        
+        filename = title.split(" - ", 1)[1]
+        
+        # We need the full path - this is a limitation, 
+        # annotations will be saved on next export
+        logger.info("save_current_annotations: Annotations will be saved on export")
+        return True
 
 
 def main():

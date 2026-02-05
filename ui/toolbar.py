@@ -181,6 +181,7 @@ class ViewControlsToolbar(QWidget):
     view_top = pyqtSignal()
     toggle_fullscreen = pyqtSignal()
     toggle_ruler = pyqtSignal()
+    toggle_annotation = pyqtSignal()
     load_file = pyqtSignal()
     clear_model = pyqtSignal()
     
@@ -193,6 +194,7 @@ class ViewControlsToolbar(QWidget):
         self.wireframe_enabled = False
         self.is_fullscreen = False
         self.ruler_mode_enabled = False
+        self.annotation_mode_enabled = False
         self.stl_loaded = False
         
         # Load saved state
@@ -276,6 +278,11 @@ class ViewControlsToolbar(QWidget):
         self.ruler_btn.setEnabled(False)  # Disabled until model is loaded
         content_layout.addWidget(self.ruler_btn)
         
+        self.annotation_btn = ToolbarButton("📝", "Annotate", "Add annotations to the model")
+        self.annotation_btn.clicked.connect(self._on_annotation_clicked)
+        self.annotation_btn.setEnabled(False)  # Disabled until model is loaded
+        content_layout.addWidget(self.annotation_btn)
+        
         self.fullscreen_btn = ToolbarButton("⛶", "Fullscreen", "")
         self.fullscreen_btn.clicked.connect(self._on_fullscreen_clicked)
         content_layout.addWidget(self.fullscreen_btn)
@@ -351,8 +358,9 @@ class ViewControlsToolbar(QWidget):
         self.front_btn.setEnabled(loaded)
         self.side_btn.setEnabled(loaded)
         self.top_btn.setEnabled(loaded)
-        self.ruler_btn.setEnabled(loaded)  # Enable ruler button when model is loaded
-        self.reset_model_btn.setEnabled(loaded)  # Enable reset model button when model is loaded
+        self.ruler_btn.setEnabled(loaded)
+        self.annotation_btn.setEnabled(loaded)
+        self.reset_model_btn.setEnabled(loaded)
     
     def _on_grid_clicked(self):
         """Handle grid toggle."""
@@ -406,11 +414,33 @@ class ViewControlsToolbar(QWidget):
         if self.ruler_mode_enabled:
             self.ruler_btn.set_label("Ruler")
             self.ruler_btn.set_icon("📐")
+            # Disable annotation mode if active
+            if self.annotation_mode_enabled:
+                self.annotation_mode_enabled = False
+                self.annotation_btn.set_active(False)
+                self.annotation_btn.set_icon("📝")
         else:
             self.ruler_btn.set_label("Ruler")
             self.ruler_btn.set_icon("📏")
         self.ruler_btn.set_active(self.ruler_mode_enabled)
         self.toggle_ruler.emit()
+    
+    def _on_annotation_clicked(self):
+        """Handle annotation toggle."""
+        self.annotation_mode_enabled = not self.annotation_mode_enabled
+        if self.annotation_mode_enabled:
+            self.annotation_btn.set_label("Annotate")
+            self.annotation_btn.set_icon("✏️")
+            # Disable ruler mode if active
+            if self.ruler_mode_enabled:
+                self.ruler_mode_enabled = False
+                self.ruler_btn.set_active(False)
+                self.ruler_btn.set_icon("📏")
+        else:
+            self.annotation_btn.set_label("Annotate")
+            self.annotation_btn.set_icon("📝")
+        self.annotation_btn.set_active(self.annotation_mode_enabled)
+        self.toggle_annotation.emit()
     
     def _on_fullscreen_clicked(self):
         """Handle fullscreen toggle."""
@@ -438,6 +468,13 @@ class ViewControlsToolbar(QWidget):
         self.is_fullscreen = False
         self.fullscreen_btn.set_label("Fullscreen")
         self.fullscreen_btn.set_active(False)
+    
+    def reset_annotation_state(self):
+        """Reset annotation button state (called when exiting annotation mode externally)."""
+        self.annotation_mode_enabled = False
+        self.annotation_btn.set_label("Annotate")
+        self.annotation_btn.set_icon("📝")
+        self.annotation_btn.set_active(False)
     
     def set_loaded_filename(self, filename):
         """Update the load button tooltip to show the loaded filename."""
