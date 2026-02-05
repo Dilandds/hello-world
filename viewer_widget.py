@@ -635,26 +635,46 @@ class STLViewerWidget(QWidget):
             logger.warning("enable_ruler_mode: Plotter not initialized")
             return False
         
+        if self.current_mesh is None:
+            logger.warning("enable_ruler_mode: No mesh loaded")
+            return False
+        
         logger.info("enable_ruler_mode: Enabling ruler mode...")
         self.ruler_mode = True
         self.measurement_points = []
         
         try:
-            # Enable point picking on mesh surface
-            self.plotter.enable_point_picking(
+            # Use enable_surface_point_picking for precise mesh surface picking
+            # This is the correct method for clicking on mesh surfaces
+            self.plotter.enable_surface_point_picking(
                 callback=self._on_point_picked,
                 show_message=False,
-                use_picker=True,
-                pickable_window=False,
                 show_point=False,  # We'll draw our own markers
+                picker='point',  # Use point picker for vertex snapping
             )
-            logger.info("enable_ruler_mode: Point picking enabled")
+            logger.info("enable_ruler_mode: Surface point picking enabled")
             
             # Switch to orthographic projection for accurate measurement
             self.plotter.enable_parallel_projection()
             logger.info("enable_ruler_mode: Orthographic projection enabled")
             
             return True
+        except AttributeError:
+            # Fallback for older PyVista versions without enable_surface_point_picking
+            logger.info("enable_ruler_mode: Falling back to enable_point_picking...")
+            try:
+                self.plotter.enable_point_picking(
+                    callback=self._on_point_picked,
+                    show_message=False,
+                    show_point=False,
+                    use_mesh=True,
+                )
+                self.plotter.enable_parallel_projection()
+                return True
+            except Exception as e2:
+                logger.error(f"enable_ruler_mode: Fallback also failed: {e2}", exc_info=True)
+                self.ruler_mode = False
+                return False
         except Exception as e:
             logger.error(f"enable_ruler_mode: Failed to enable ruler mode: {e}", exc_info=True)
             self.ruler_mode = False
