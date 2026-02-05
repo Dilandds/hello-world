@@ -82,7 +82,11 @@ class STLViewerWidget(QWidget):
         self.ruler_mode = False
         self.measurement_points = []
         self.measurement_actors = []  # Track measurement visualization actors
-        
+
+        # Ruler picking internals (VTK observer-based; more reliable than PyVista helpers in QtInteractor)
+        self._ruler_click_observer_id = None
+        self._ruler_picker = None
+
         debug_print("STLViewerWidget: Basic initialization complete, QtInteractor will be created after window is shown")
         logger.info("STLViewerWidget: Basic initialization complete, QtInteractor will be created after window is shown")
     
@@ -628,39 +632,199 @@ class STLViewerWidget(QWidget):
             self.drop_overlay.hide()
     
     # ========== Ruler/Measurement Mode Methods ==========
-    
+
+    def _get_vtk_interactor(self):
+        """Return the underlying vtkRenderWindowInteractor (works across pyvistaqt versions)."""
+        if self.plotter is None:
+            return None
+
+        iren = getattr(self.plotter, 'iren', None)
+        if iren is not None:
+            return iren
+
+        # Fallback: resolve interactor from the QVTK widget
+        interactor_widget = getattr(self.plotter, 'interactor', None)
+        if interactor_widget is not None:
+            try:
+                rw = interactor_widget.GetRenderWindow()
+                if rw is not None:
+                    return rw.GetInteractor()
+            except Exception:
+                pass
+
+        return None
+
+    def _install_ruler_click_picking(self) -> bool:
+        """Install a VTK observer for click-based picking (most reliable in QtInteractor)."""
+        try:
+            import vtk  # type: ignore
+        except Exception as e:
+            logger.warning(f"_install_ruler_click_picking: vtk import failed: {e}")
+            return False
+
+        iren = self._get_vtk_interactor()
+        if iren is None:
+            logger.warning("_install_ruler_click_picking: Could not get VTK interactor")
+            return False
+
+        # Remove any previous observer first (important: do this before creating a new picker)
+        self._uninstall_ruler_click_picking()
+
+        # Create picker (cell picker is robust; we snap to nearest vertex ourselves)
+        self._ruler_picker = vtk.vtkCellPicker()
+        try:
+            # A slightly larger tolerance improves hit-testing reliability on high-DPI displays.
+            # We still snap to the nearest vertex, so accuracy remains high.
+            self._ruler_picker.SetTolerance(0.01)
+        except Exception:
+            pass
+
+        # Try to restrict picking to just the model actor (avoid axes/background)
+        if self.current_actor is not None:
+            try:
+                self.current_actor.SetPickable(True)
+            except Exception:
+                pass
+            try:
+                self._ruler_picker.PickFromListOn()
+                self._ruler_picker.AddPickList(self.current_actor)
+            except Exception as e:
+                logger.debug(f"_install_ruler_click_picking: Could not restrict pick list: {e}")
+                # Avoid the "empty pick list" situation, which would prevent ALL picking.
+                try:
+                    self._ruler_picker.PickFromListOff()
+                except Exception:
+                    pass
+
+        try:
+            self._ruler_click_observer_id = iren.AddObserver(
+                "LeftButtonPressEvent",
+                self._on_ruler_left_click,
+                1.0,  # high priority
+            )
+            logger.info("_install_ruler_click_picking: VTK click observer installed")
+            return True
+        except Exception as e:
+            logger.error(f"_install_ruler_click_picking: Failed to add observer: {e}", exc_info=True)
+            self._ruler_click_observer_id = None
+            self._ruler_picker = None
+            return False
+
+    def _uninstall_ruler_click_picking(self):
+        """Remove VTK observer used for ruler picking."""
+        if self._ruler_click_observer_id is None:
+            self._ruler_picker = None
+            return
+
+        iren = self._get_vtk_interactor()
+        try:
+            if iren is not None:
+                iren.RemoveObserver(self._ruler_click_observer_id)
+                logger.info("_uninstall_ruler_click_picking: VTK click observer removed")
+        except Exception as e:
+            logger.debug(f"_uninstall_ruler_click_picking: Could not remove observer: {e}")
+        finally:
+            self._ruler_click_observer_id = None
+            self._ruler_picker = None
+
+    def _on_ruler_left_click(self, obj, event):
+        """VTK callback for left-click picking while ruler mode is enabled."""
+        if not self.ruler_mode or self.plotter is None or self._ruler_picker is None:
+            return
+
+        iren = self._get_vtk_interactor()
+        if iren is None:
+            return
+
+        try:
+            x, y = iren.GetEventPosition()
+        except Exception:
+            return
+
+        # INFO-level on purpose: this is the easiest way to confirm clicks are reaching VTK.
+        logger.info(f"_on_ruler_left_click: click screen=({x},{y})")
+
+        renderer = getattr(self.plotter, 'renderer', None)
+        if renderer is None:
+            try:
+                renderer = self.plotter.ren_win.GetRenderers().GetFirstRenderer()
+            except Exception:
+                renderer = None
+
+        if renderer is None:
+            logger.info("_on_ruler_left_click: No renderer available")
+            return
+
+        try:
+            self._ruler_picker.Pick(x, y, 0, renderer)
+            cell_id = self._ruler_picker.GetCellId()
+            if cell_id == -1:
+                logger.info(f"_on_ruler_left_click: No hit at ({x}, {y})")
+                return
+
+            picked_world = self._ruler_picker.GetPickPosition()
+
+            # Snap to nearest mesh vertex for consistent repeatability
+            snapped = picked_world
+            try:
+                if self.current_mesh is not None and hasattr(self.current_mesh, 'find_closest_point'):
+                    idx = self.current_mesh.find_closest_point(picked_world)
+                    snapped = self.current_mesh.points[int(idx)]
+            except Exception as e:
+                logger.debug(f"_on_ruler_left_click: Vertex snapping failed: {e}")
+
+            logger.info(
+                f"_on_ruler_left_click: hit cell_id={cell_id} screen=({x},{y}) world={picked_world} snapped={snapped}"
+            )
+
+            # Reuse the existing measurement pipeline
+            self._on_point_picked(snapped)
+        except Exception as e:
+            logger.error(f"_on_ruler_left_click: Picking failed: {e}", exc_info=True)
+
     def enable_ruler_mode(self):
         """Enable point-to-point measurement mode with orthographic projection."""
         if self.plotter is None:
             logger.warning("enable_ruler_mode: Plotter not initialized")
             return False
-        
+
         if self.current_mesh is None:
             logger.warning("enable_ruler_mode: No mesh loaded")
             return False
-        
+
         logger.info("enable_ruler_mode: Enabling ruler mode...")
         self.ruler_mode = True
         self.measurement_points = []
-        
+
+        # Ensure we don't have leftover picking/observers from a previous session
+        self._uninstall_ruler_click_picking()
         try:
-            # Use enable_surface_point_picking for precise mesh surface picking
-            # This is the correct method for clicking on mesh surfaces
+            self.plotter.disable_picking()
+        except Exception:
+            pass
+
+        # Prefer VTK observer-based picking (more reliable than PyVista helpers under QtInteractor)
+        if self._install_ruler_click_picking():
+            try:
+                self.plotter.enable_parallel_projection()
+                logger.info("enable_ruler_mode: Orthographic projection enabled")
+            except Exception as e:
+                logger.warning(f"enable_ruler_mode: Could not enable orthographic projection: {e}")
+            return True
+
+        # Fallback to PyVista picking helpers (if VTK interactor not available)
+        try:
             self.plotter.enable_surface_point_picking(
                 callback=self._on_point_picked,
                 show_message=False,
-                show_point=False,  # We'll draw our own markers
-                picker='point',  # Use point picker for vertex snapping
+                show_point=False,
+                picker='cell',
             )
-            logger.info("enable_ruler_mode: Surface point picking enabled")
-            
-            # Switch to orthographic projection for accurate measurement
+            logger.info("enable_ruler_mode: Surface point picking enabled (fallback)")
             self.plotter.enable_parallel_projection()
             logger.info("enable_ruler_mode: Orthographic projection enabled")
-            
             return True
         except AttributeError:
-            # Fallback for older PyVista versions without enable_surface_point_picking
             logger.info("enable_ruler_mode: Falling back to enable_point_picking...")
             try:
                 self.plotter.enable_point_picking(
@@ -679,33 +843,34 @@ class STLViewerWidget(QWidget):
             logger.error(f"enable_ruler_mode: Failed to enable ruler mode: {e}", exc_info=True)
             self.ruler_mode = False
             return False
-    
+
     def disable_ruler_mode(self):
         """Disable measurement mode and restore perspective projection."""
         if self.plotter is None:
             return
-        
+
         logger.info("disable_ruler_mode: Disabling ruler mode...")
         self.ruler_mode = False
         self.measurement_points = []
-        
+
+        # Remove our observer (if installed)
+        self._uninstall_ruler_click_picking()
+
         try:
-            # Disable point picking
             self.plotter.disable_picking()
-            logger.info("disable_ruler_mode: Point picking disabled")
+            logger.info("disable_ruler_mode: Picking disabled")
         except Exception as e:
             logger.warning(f"disable_ruler_mode: Could not disable picking: {e}")
-        
+
         # Clear all measurement visualizations
         self.clear_measurements()
-        
+
         try:
-            # Restore perspective projection
             self.plotter.disable_parallel_projection()
             logger.info("disable_ruler_mode: Perspective projection restored")
         except Exception as e:
             logger.warning(f"disable_ruler_mode: Could not restore projection: {e}")
-    
+
     def _on_point_picked(self, point):
         """Handle point picked for measurement."""
         if not self.ruler_mode or point is None:
