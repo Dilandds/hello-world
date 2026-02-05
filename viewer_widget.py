@@ -634,24 +634,54 @@ class STLViewerWidget(QWidget):
     # ========== Ruler/Measurement Mode Methods ==========
 
     def _get_vtk_interactor(self):
-        """Return the underlying vtkRenderWindowInteractor (works across pyvistaqt versions)."""
+        """Safely get the underlying VTK render window interactor from pyvistaqt.
+        
+        pyvistaqt wraps the VTK interactor in a RenderWindowInteractor class.
+        We need the actual vtkRenderWindowInteractor for AddObserver calls.
+        """
         if self.plotter is None:
             return None
 
+        # Method 1: Get from render window directly (most reliable)
+        try:
+            ren_win = self.plotter.ren_win
+            if ren_win is not None:
+                vtk_iren = ren_win.GetInteractor()
+                if vtk_iren is not None and hasattr(vtk_iren, 'AddObserver'):
+                    return vtk_iren
+        except Exception:
+            pass
+
+        # Method 2: pyvistaqt stores underlying interactor
         iren = getattr(self.plotter, 'iren', None)
         if iren is not None:
-            return iren
+            # Check if it's the wrapper or the actual VTK object
+            if hasattr(iren, 'AddObserver'):
+                return iren
+            # Try to get underlying VTK interactor from wrapper
+            if hasattr(iren, 'GetRenderWindow'):
+                try:
+                    rw = iren.GetRenderWindow()
+                    if rw is not None:
+                        vtk_iren = rw.GetInteractor()
+                        if vtk_iren is not None and hasattr(vtk_iren, 'AddObserver'):
+                            return vtk_iren
+                except Exception:
+                    pass
 
-        # Fallback: resolve interactor from the QVTK widget
+        # Method 3: Fallback via interactor attribute
         interactor_widget = getattr(self.plotter, 'interactor', None)
         if interactor_widget is not None:
             try:
                 rw = interactor_widget.GetRenderWindow()
                 if rw is not None:
-                    return rw.GetInteractor()
+                    vtk_iren = rw.GetInteractor()
+                    if vtk_iren is not None and hasattr(vtk_iren, 'AddObserver'):
+                        return vtk_iren
             except Exception:
                 pass
 
+        logger.warning("_get_vtk_interactor: Could not find VTK interactor with AddObserver")
         return None
 
     def _install_ruler_click_picking(self) -> bool:
