@@ -180,6 +180,7 @@ class ViewControlsToolbar(QWidget):
     view_side = pyqtSignal()
     view_top = pyqtSignal()
     toggle_fullscreen = pyqtSignal()
+    toggle_ruler = pyqtSignal()
     load_file = pyqtSignal()
     clear_model = pyqtSignal()
     
@@ -191,6 +192,7 @@ class ViewControlsToolbar(QWidget):
         self.dark_theme = False
         self.wireframe_enabled = False
         self.is_fullscreen = False
+        self.ruler_mode_enabled = False
         self.stl_loaded = False
         
         # Load saved state
@@ -269,6 +271,11 @@ class ViewControlsToolbar(QWidget):
         content_layout.addSpacerItem(QSpacerItem(16, 0, QSizePolicy.Fixed, QSizePolicy.Minimum))
         
         # === Utility Actions ===
+        self.ruler_btn = ToolbarButton("📏", "Ruler", "Measure distances on the model")
+        self.ruler_btn.clicked.connect(self._on_ruler_clicked)
+        self.ruler_btn.setEnabled(False)  # Disabled until model is loaded
+        content_layout.addWidget(self.ruler_btn)
+        
         self.fullscreen_btn = ToolbarButton("⛶", "Fullscreen", "")
         self.fullscreen_btn.clicked.connect(self._on_fullscreen_clicked)
         content_layout.addWidget(self.fullscreen_btn)
@@ -344,6 +351,7 @@ class ViewControlsToolbar(QWidget):
         self.front_btn.setEnabled(loaded)
         self.side_btn.setEnabled(loaded)
         self.top_btn.setEnabled(loaded)
+        self.ruler_btn.setEnabled(loaded)  # Enable ruler button when model is loaded
         self.reset_model_btn.setEnabled(loaded)  # Enable reset model button when model is loaded
     
     def _on_grid_clicked(self):
@@ -391,6 +399,18 @@ class ViewControlsToolbar(QWidget):
     def _on_top_clicked(self):
         """Handle top view."""
         self.view_top.emit()
+    
+    def _on_ruler_clicked(self):
+        """Handle ruler toggle."""
+        self.ruler_mode_enabled = not self.ruler_mode_enabled
+        if self.ruler_mode_enabled:
+            self.ruler_btn.set_label("Ruler")
+            self.ruler_btn.set_icon("📐")
+        else:
+            self.ruler_btn.set_label("Ruler")
+            self.ruler_btn.set_icon("📏")
+        self.ruler_btn.set_active(self.ruler_mode_enabled)
+        self.toggle_ruler.emit()
     
     def _on_fullscreen_clicked(self):
         """Handle fullscreen toggle."""

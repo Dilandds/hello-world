@@ -78,6 +78,11 @@ class STLViewerWidget(QWidget):
         self._initialized = False
         self._model_loaded = False
         
+        # Ruler/measurement mode state
+        self.ruler_mode = False
+        self.measurement_points = []
+        self.measurement_actors = []  # Track measurement visualization actors
+        
         debug_print("STLViewerWidget: Basic initialization complete, QtInteractor will be created after window is shown")
         logger.info("STLViewerWidget: Basic initialization complete, QtInteractor will be created after window is shown")
     
@@ -621,3 +626,265 @@ class STLViewerWidget(QWidget):
             self.drop_overlay.raise_()
         else:
             self.drop_overlay.hide()
+    
+    # ========== Ruler/Measurement Mode Methods ==========
+    
+    def enable_ruler_mode(self):
+        """Enable point-to-point measurement mode with orthographic projection."""
+        if self.plotter is None:
+            logger.warning("enable_ruler_mode: Plotter not initialized")
+            return False
+        
+        logger.info("enable_ruler_mode: Enabling ruler mode...")
+        self.ruler_mode = True
+        self.measurement_points = []
+        
+        try:
+            # Enable point picking on mesh surface
+            self.plotter.enable_point_picking(
+                callback=self._on_point_picked,
+                show_message=False,
+                use_picker=True,
+                pickable_window=False,
+                show_point=False,  # We'll draw our own markers
+            )
+            logger.info("enable_ruler_mode: Point picking enabled")
+            
+            # Switch to orthographic projection for accurate measurement
+            self.plotter.enable_parallel_projection()
+            logger.info("enable_ruler_mode: Orthographic projection enabled")
+            
+            return True
+        except Exception as e:
+            logger.error(f"enable_ruler_mode: Failed to enable ruler mode: {e}", exc_info=True)
+            self.ruler_mode = False
+            return False
+    
+    def disable_ruler_mode(self):
+        """Disable measurement mode and restore perspective projection."""
+        if self.plotter is None:
+            return
+        
+        logger.info("disable_ruler_mode: Disabling ruler mode...")
+        self.ruler_mode = False
+        self.measurement_points = []
+        
+        try:
+            # Disable point picking
+            self.plotter.disable_picking()
+            logger.info("disable_ruler_mode: Point picking disabled")
+        except Exception as e:
+            logger.warning(f"disable_ruler_mode: Could not disable picking: {e}")
+        
+        # Clear all measurement visualizations
+        self.clear_measurements()
+        
+        try:
+            # Restore perspective projection
+            self.plotter.disable_parallel_projection()
+            logger.info("disable_ruler_mode: Perspective projection restored")
+        except Exception as e:
+            logger.warning(f"disable_ruler_mode: Could not restore projection: {e}")
+    
+    def _on_point_picked(self, point):
+        """Handle point picked for measurement."""
+        if not self.ruler_mode or point is None:
+            return
+        
+        logger.info(f"_on_point_picked: Point picked at {point}")
+        self.measurement_points.append(point)
+        
+        # Calculate adaptive sphere size based on mesh bounds
+        sphere_radius = self._get_measurement_marker_size()
+        
+        # Add sphere marker at picked point
+        try:
+            sphere = pv.Sphere(radius=sphere_radius, center=point)
+            actor = self.plotter.add_mesh(
+                sphere, 
+                color='#5294E2', 
+                name=f'measure_pt_{len(self.measurement_points)}_{id(point)}'
+            )
+            self.measurement_actors.append(actor)
+            logger.info(f"_on_point_picked: Marker added at {point}")
+        except Exception as e:
+            logger.warning(f"_on_point_picked: Could not add marker: {e}")
+        
+        # If we have two points, calculate and display the measurement
+        if len(self.measurement_points) == 2:
+            distance = self._calculate_distance(
+                self.measurement_points[0], 
+                self.measurement_points[1]
+            )
+            self._draw_measurement_line(
+                self.measurement_points[0],
+                self.measurement_points[1],
+                distance
+            )
+            # Reset for next measurement
+            self.measurement_points = []
+    
+    def _get_measurement_marker_size(self):
+        """Calculate appropriate marker size based on mesh bounds."""
+        if self.current_mesh is None:
+            return 1.0
+        
+        try:
+            bounds = self.current_mesh.bounds
+            max_dimension = max(
+                bounds[1] - bounds[0],  # x range
+                bounds[3] - bounds[2],  # y range
+                bounds[5] - bounds[4],  # z range
+            )
+            # Marker size is ~1% of the largest dimension
+            return max(max_dimension * 0.01, 0.1)
+        except Exception as e:
+            logger.warning(f"_get_measurement_marker_size: Could not calculate size: {e}")
+            return 1.0
+    
+    def _calculate_distance(self, point1, point2):
+        """Calculate Euclidean distance between two 3D points."""
+        import numpy as np
+        p1 = np.array(point1)
+        p2 = np.array(point2)
+        distance = np.linalg.norm(p2 - p1)
+        logger.info(f"_calculate_distance: Distance = {distance:.4f}")
+        return distance
+    
+    def _draw_measurement_line(self, point1, point2, distance):
+        """Draw measurement line with distance label between two points."""
+        import numpy as np
+        
+        try:
+            # Create line between points
+            line = pv.Line(point1, point2)
+            line_actor = self.plotter.add_mesh(
+                line,
+                color='#5294E2',
+                line_width=2,
+                name=f'measure_line_{id(point1)}'
+            )
+            self.measurement_actors.append(line_actor)
+            
+            # Calculate midpoint for label
+            midpoint = [
+                (point1[0] + point2[0]) / 2,
+                (point1[1] + point2[1]) / 2,
+                (point1[2] + point2[2]) / 2,
+            ]
+            
+            # Add distance label at midpoint
+            # Format distance with appropriate precision
+            if distance < 1:
+                label_text = f"{distance:.4f} mm"
+            elif distance < 100:
+                label_text = f"{distance:.2f} mm"
+            else:
+                label_text = f"{distance:.1f} mm"
+            
+            # Add the label using point labels
+            label_points = pv.PolyData([midpoint])
+            label_actor = self.plotter.add_point_labels(
+                label_points,
+                [label_text],
+                font_size=12,
+                text_color='#0F172A',
+                font_family='arial',
+                bold=True,
+                show_points=False,
+                always_visible=True,
+                name=f'measure_label_{id(point1)}'
+            )
+            if label_actor:
+                self.measurement_actors.append(label_actor)
+            
+            logger.info(f"_draw_measurement_line: Line and label drawn, distance = {label_text}")
+            
+            # Force render to show the measurement
+            self.plotter.render()
+            
+        except Exception as e:
+            logger.error(f"_draw_measurement_line: Failed to draw measurement: {e}", exc_info=True)
+    
+    def clear_measurements(self):
+        """Clear all measurement visualizations from the viewer."""
+        if self.plotter is None:
+            return
+        
+        logger.info("clear_measurements: Clearing all measurements...")
+        
+        # Remove all measurement actors
+        for actor in self.measurement_actors:
+            try:
+                self.plotter.remove_actor(actor)
+            except Exception as e:
+                logger.debug(f"clear_measurements: Could not remove actor: {e}")
+        
+        self.measurement_actors = []
+        self.measurement_points = []
+        
+        try:
+            self.plotter.render()
+        except Exception as e:
+            logger.debug(f"clear_measurements: Could not render: {e}")
+        
+        logger.info("clear_measurements: Measurements cleared")
+    
+    # ========== Orthographic View Methods for Ruler Mode ==========
+    
+    def view_front_ortho(self):
+        """Set camera to front view with orthographic projection."""
+        if self.plotter is None:
+            return
+        try:
+            self.plotter.view_yz()
+            self.plotter.enable_parallel_projection()
+            logger.info("view_front_ortho: Front orthographic view set")
+        except Exception as e:
+            logger.warning(f"view_front_ortho: Could not set view: {e}")
+    
+    def view_side_ortho(self):
+        """Set camera to side view with orthographic projection."""
+        if self.plotter is None:
+            return
+        try:
+            self.plotter.view_xz()
+            self.plotter.enable_parallel_projection()
+            logger.info("view_side_ortho: Side orthographic view set")
+        except Exception as e:
+            logger.warning(f"view_side_ortho: Could not set view: {e}")
+    
+    def view_top_ortho(self):
+        """Set camera to top view with orthographic projection."""
+        if self.plotter is None:
+            return
+        try:
+            self.plotter.view_xy()
+            self.plotter.enable_parallel_projection()
+            logger.info("view_top_ortho: Top orthographic view set")
+        except Exception as e:
+            logger.warning(f"view_top_ortho: Could not set view: {e}")
+    
+    def view_bottom_ortho(self):
+        """Set camera to bottom view with orthographic projection."""
+        if self.plotter is None:
+            return
+        try:
+            # Bottom view: looking down the -Z axis
+            self.plotter.view_xy(negative=True)
+            self.plotter.enable_parallel_projection()
+            logger.info("view_bottom_ortho: Bottom orthographic view set")
+        except Exception as e:
+            logger.warning(f"view_bottom_ortho: Could not set view: {e}")
+    
+    def view_rear_ortho(self):
+        """Set camera to rear view with orthographic projection."""
+        if self.plotter is None:
+            return
+        try:
+            # Rear view: looking down the -X axis
+            self.plotter.view_yz(negative=True)
+            self.plotter.enable_parallel_projection()
+            logger.info("view_rear_ortho: Rear orthographic view set")
+        except Exception as e:
+            logger.warning(f"view_rear_ortho: Could not set view: {e}")

@@ -20,6 +20,7 @@ except Exception as e:
 
 from ui.sidebar_panel import SidebarPanel
 from ui.toolbar import ViewControlsToolbar
+from ui.ruler_toolbar import RulerToolbar
 from ui.styles import get_global_stylesheet, default_theme
 from core.mesh_calculator import MeshCalculator
 
@@ -104,6 +105,14 @@ class STLViewerWindow(QMainWindow):
         right_layout.addWidget(self.toolbar)
         logger.info("init_ui: Toolbar created")
         
+        # Create ruler toolbar (hidden by default)
+        logger.info("init_ui: Creating ruler toolbar...")
+        self.ruler_toolbar = RulerToolbar()
+        self.ruler_toolbar.hide()  # Hidden until ruler mode is activated
+        self._connect_ruler_toolbar_signals()
+        right_layout.addWidget(self.ruler_toolbar)
+        logger.info("init_ui: Ruler toolbar created")
+        
         debug_print("init_ui: Creating 3D viewer widget (this may take a moment)...")
         logger.info("init_ui: Creating 3D viewer widget (this may take a moment)...")
         try:
@@ -167,8 +176,19 @@ class STLViewerWindow(QMainWindow):
         self.toolbar.view_side.connect(self._view_side)
         self.toolbar.view_top.connect(self._view_top)
         self.toolbar.toggle_fullscreen.connect(self._toggle_fullscreen)
+        self.toolbar.toggle_ruler.connect(self._toggle_ruler_mode)
         self.toolbar.load_file.connect(self.upload_stl_file)
         self.toolbar.clear_model.connect(self._clear_current_model)
+    
+    def _connect_ruler_toolbar_signals(self):
+        """Connect ruler toolbar signals to handler methods."""
+        self.ruler_toolbar.view_front.connect(self._ruler_view_front)
+        self.ruler_toolbar.view_side.connect(self._ruler_view_side)
+        self.ruler_toolbar.view_top.connect(self._ruler_view_top)
+        self.ruler_toolbar.view_bottom.connect(self._ruler_view_bottom)
+        self.ruler_toolbar.view_rear.connect(self._ruler_view_rear)
+        self.ruler_toolbar.clear_measurements.connect(self._clear_measurements)
+        self.ruler_toolbar.exit_ruler.connect(self._exit_ruler_mode)
     
     def _clear_current_model(self):
         """Clear the current model from the viewer."""
@@ -310,6 +330,69 @@ class STLViewerWindow(QMainWindow):
                 self.viewer_widget.plotter.view_xy()
             except Exception as e:
                 logger.warning(f"Could not set top view: {e}")
+    
+    # ========== Ruler Mode Methods ==========
+    
+    def _toggle_ruler_mode(self):
+        """Toggle ruler/measurement mode."""
+        if self.toolbar.ruler_mode_enabled:
+            # Enable ruler mode
+            if hasattr(self.viewer_widget, 'enable_ruler_mode'):
+                success = self.viewer_widget.enable_ruler_mode()
+                if success:
+                    self.ruler_toolbar.show()
+                    self.ruler_toolbar.reset_to_front()
+                    self._ruler_view_front()  # Auto-switch to front view
+                    logger.info("_toggle_ruler_mode: Ruler mode enabled")
+                else:
+                    # Failed to enable, reset toolbar state
+                    self.toolbar.ruler_mode_enabled = False
+                    self.toolbar.ruler_btn.set_active(False)
+                    logger.warning("_toggle_ruler_mode: Failed to enable ruler mode")
+        else:
+            # Disable ruler mode
+            self._exit_ruler_mode()
+    
+    def _exit_ruler_mode(self):
+        """Exit ruler mode and restore normal view."""
+        if hasattr(self.viewer_widget, 'disable_ruler_mode'):
+            self.viewer_widget.disable_ruler_mode()
+        self.ruler_toolbar.hide()
+        # Reset toolbar button state
+        self.toolbar.ruler_mode_enabled = False
+        self.toolbar.ruler_btn.set_active(False)
+        self.toolbar.ruler_btn.set_icon("📏")
+        logger.info("_exit_ruler_mode: Ruler mode disabled")
+    
+    def _ruler_view_front(self):
+        """Set front orthographic view for measurement."""
+        if hasattr(self.viewer_widget, 'view_front_ortho'):
+            self.viewer_widget.view_front_ortho()
+    
+    def _ruler_view_side(self):
+        """Set side orthographic view for measurement."""
+        if hasattr(self.viewer_widget, 'view_side_ortho'):
+            self.viewer_widget.view_side_ortho()
+    
+    def _ruler_view_top(self):
+        """Set top orthographic view for measurement."""
+        if hasattr(self.viewer_widget, 'view_top_ortho'):
+            self.viewer_widget.view_top_ortho()
+    
+    def _ruler_view_bottom(self):
+        """Set bottom orthographic view for measurement."""
+        if hasattr(self.viewer_widget, 'view_bottom_ortho'):
+            self.viewer_widget.view_bottom_ortho()
+    
+    def _ruler_view_rear(self):
+        """Set rear orthographic view for measurement."""
+        if hasattr(self.viewer_widget, 'view_rear_ortho'):
+            self.viewer_widget.view_rear_ortho()
+    
+    def _clear_measurements(self):
+        """Clear all measurements from the viewer."""
+        if hasattr(self.viewer_widget, 'clear_measurements'):
+            self.viewer_widget.clear_measurements()
     
     def _toggle_fullscreen(self):
         """Toggle fullscreen mode."""
