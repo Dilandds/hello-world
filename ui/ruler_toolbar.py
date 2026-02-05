@@ -88,7 +88,8 @@ class RulerToolbar(QWidget):
     
     # Signals for view selection
     view_front = pyqtSignal()
-    view_side = pyqtSignal()
+    view_left = pyqtSignal()
+    view_right = pyqtSignal()
     view_top = pyqtSignal()
     view_bottom = pyqtSignal()
     view_rear = pyqtSignal()
@@ -158,9 +159,17 @@ class RulerToolbar(QWidget):
         self.front_btn.clicked.connect(self._on_front_clicked)
         layout.addWidget(self.front_btn)
         
-        self.side_btn = RulerViewButton("Side")
-        self.side_btn.clicked.connect(self._on_side_clicked)
-        layout.addWidget(self.side_btn)
+        self.rear_btn = RulerViewButton("Rear")
+        self.rear_btn.clicked.connect(self._on_rear_clicked)
+        layout.addWidget(self.rear_btn)
+        
+        self.left_btn = RulerViewButton("Left")
+        self.left_btn.clicked.connect(self._on_left_clicked)
+        layout.addWidget(self.left_btn)
+        
+        self.right_btn = RulerViewButton("Right")
+        self.right_btn.clicked.connect(self._on_right_clicked)
+        layout.addWidget(self.right_btn)
         
         self.top_btn = RulerViewButton("Top")
         self.top_btn.clicked.connect(self._on_top_clicked)
@@ -169,10 +178,6 @@ class RulerToolbar(QWidget):
         self.bottom_btn = RulerViewButton("Bottom")
         self.bottom_btn.clicked.connect(self._on_bottom_clicked)
         layout.addWidget(self.bottom_btn)
-        
-        self.rear_btn = RulerViewButton("Rear")
-        self.rear_btn.clicked.connect(self._on_rear_clicked)
-        layout.addWidget(self.rear_btn)
         
         # Separator
         separator2 = QFrame()
@@ -214,20 +219,26 @@ class RulerToolbar(QWidget):
         """Update view button active states."""
         self._current_view = active_view
         self.front_btn.set_active(active_view == "front")
-        self.side_btn.set_active(active_view == "side")
+        self.rear_btn.set_active(active_view == "rear")
+        self.left_btn.set_active(active_view == "left")
+        self.right_btn.set_active(active_view == "right")
         self.top_btn.set_active(active_view == "top")
         self.bottom_btn.set_active(active_view == "bottom")
-        self.rear_btn.set_active(active_view == "rear")
     
     def _on_front_clicked(self):
         """Handle front view button click."""
         self._update_view_buttons("front")
         self.view_front.emit()
     
-    def _on_side_clicked(self):
-        """Handle side view button click."""
-        self._update_view_buttons("side")
-        self.view_side.emit()
+    def _on_left_clicked(self):
+        """Handle left view button click."""
+        self._update_view_buttons("left")
+        self.view_left.emit()
+    
+    def _on_right_clicked(self):
+        """Handle right view button click."""
+        self._update_view_buttons("right")
+        self.view_right.emit()
     
     def _on_top_clicked(self):
         """Handle top view button click."""
