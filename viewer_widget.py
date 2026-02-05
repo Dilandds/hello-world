@@ -1066,16 +1066,28 @@ class STLViewerWidget(QWidget):
         except Exception as e:
             logger.warning(f"view_front_ortho: Could not set view: {e}")
     
-    def view_side_ortho(self):
-        """Set camera to side view with orthographic projection."""
+    def view_right_ortho(self):
+        """Set camera to right view with orthographic projection."""
         if self.plotter is None:
             return
         try:
             self.plotter.view_xz()
             self.plotter.enable_parallel_projection()
-            logger.info("view_side_ortho: Side orthographic view set")
+            logger.info("view_right_ortho: Right orthographic view set")
         except Exception as e:
-            logger.warning(f"view_side_ortho: Could not set view: {e}")
+            logger.warning(f"view_right_ortho: Could not set view: {e}")
+    
+    def view_left_ortho(self):
+        """Set camera to left view with orthographic projection."""
+        if self.plotter is None:
+            return
+        try:
+            # Left view: looking down the -Y axis
+            self.plotter.view_xz(negative=True)
+            self.plotter.enable_parallel_projection()
+            logger.info("view_left_ortho: Left orthographic view set")
+        except Exception as e:
+            logger.warning(f"view_left_ortho: Could not set view: {e}")
     
     def view_top_ortho(self):
         """Set camera to top view with orthographic projection."""

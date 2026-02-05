@@ -204,7 +204,8 @@ class STLViewerWindow(QMainWindow):
     def _connect_ruler_toolbar_signals(self):
         """Connect ruler toolbar signals to handler methods."""
         self.ruler_toolbar.view_front.connect(self._ruler_view_front)
-        self.ruler_toolbar.view_side.connect(self._ruler_view_side)
+        self.ruler_toolbar.view_left.connect(self._ruler_view_left)
+        self.ruler_toolbar.view_right.connect(self._ruler_view_right)
         self.ruler_toolbar.view_top.connect(self._ruler_view_top)
         self.ruler_toolbar.view_bottom.connect(self._ruler_view_bottom)
         self.ruler_toolbar.view_rear.connect(self._ruler_view_rear)
@@ -393,10 +394,15 @@ class STLViewerWindow(QMainWindow):
         if hasattr(self.viewer_widget, 'view_front_ortho'):
             self.viewer_widget.view_front_ortho()
     
-    def _ruler_view_side(self):
-        """Set side orthographic view for measurement."""
-        if hasattr(self.viewer_widget, 'view_side_ortho'):
-            self.viewer_widget.view_side_ortho()
+    def _ruler_view_left(self):
+        """Set left orthographic view for measurement."""
+        if hasattr(self.viewer_widget, 'view_left_ortho'):
+            self.viewer_widget.view_left_ortho()
+    
+    def _ruler_view_right(self):
+        """Set right orthographic view for measurement."""
+        if hasattr(self.viewer_widget, 'view_right_ortho'):
+            self.viewer_widget.view_right_ortho()
     
     def _ruler_view_top(self):
         """Set top orthographic view for measurement."""
